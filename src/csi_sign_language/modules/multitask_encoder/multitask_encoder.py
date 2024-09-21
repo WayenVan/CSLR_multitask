@@ -53,6 +53,8 @@ class MultiTaskEncoder(nn.Module):
         simcc_x_samples: int,
         simcc_y_samples: int,
         drop_prob=0.1,
+        enable_heatmap=True,
+        enable_simcc=True,
         *args,
         **kwargs,
     ) -> None:
@@ -60,29 +62,35 @@ class MultiTaskEncoder(nn.Module):
         self.backbone = backbone
         input_size = backbone.get_input_size()
         self.feats_map_size = backbone.get_output_feats_size()[-1]
+        self.pure_inference = False
+
+        self.enable_heatmap = enable_heatmap
+        self.enable_simcc = enable_simcc
 
         ## CSLR bracnh
         self.dropout = nn.Dropout3d(drop_prob)
         self.gap = Reduce("b c t h w -> b c t", reduction="mean")
 
-        ## SimmCC bracnh
-        # NOTE: this is formed H, W, should be revers for the next
-        self.pose_header = SimCCHead(
-            in_channels=self.backbone.get_output_dims()[-1],
-            out_channels=n_keypoints_simcc,
-            # W H
-            input_size=(input_size[1], input_size[0]),
-            # W H
-            in_featuremap_size=(self.feats_map_size[1], self.feats_map_size[0]),
-            simcc_x_samples=simcc_x_samples,
-            simcc_y_samples=simcc_y_samples,
-        )
+        if enable_simcc:
+            ## SimmCC bracnh
+            # NOTE: this is formed H, W, should be revers for the next
+            self.pose_header = SimCCHead(
+                in_channels=self.backbone.get_output_dims()[-1],
+                out_channels=n_keypoints_simcc,
+                # W H
+                input_size=(input_size[1], input_size[0]),
+                # W H
+                in_featuremap_size=(self.feats_map_size[1], self.feats_map_size[0]),
+                simcc_x_samples=simcc_x_samples,
+                simcc_y_samples=simcc_y_samples,
+            )
 
-        ## heatmap bracnh
-        self.heatmap_header = HeatmapHead(
-            in_channels=self.backbone.get_output_dims()[-1],
-            out_channels=n_keypoints_heatmap,
-        )
+        if enable_heatmap:
+            ## heatmap bracnh
+            self.heatmap_header = HeatmapHead(
+                in_channels=self.backbone.get_output_dims()[-1],
+                out_channels=n_keypoints_heatmap,
+            )
 
     MultiTaskEncoderOut = namedtuple(
         "MultiTaskEncoderOut",
@@ -97,7 +105,7 @@ class MultiTaskEncoder(nn.Module):
         """
         T = int(x.size(2))
 
-        # NOTE: x is a list of tensors
+        # NOTE: x is a list of tensors,
         feats, t_length = self.backbone(x, t_length)
         out = feats[-1]
         out = self.dropout(out)
@@ -105,17 +113,23 @@ class MultiTaskEncoder(nn.Module):
 
         feats = tuple(rearrange(a, "b c t h w -> (b t) c h w", t=T) for a in feats)
         # simcc_out
-        # NOTE: the input should be a list of tensor
-        simcc_out_x, simcc_out_y = self.pose_header(feats)
-        simcc_out_x, simcc_out_y = (
-            rearrange(a, "(b t) k l -> t b k l", t=T)
-            for a in [simcc_out_x, simcc_out_y]
-        )
+        if not self.pure_inference and self.enable_simcc:
+            # NOTE: the input should be a list of tensor, only run when the model is not training
+            simcc_out_x, simcc_out_y = self.pose_header(feats)
+            simcc_out_x, simcc_out_y = (
+                rearrange(a, "(b t) k l -> t b k l", t=T)
+                for a in [simcc_out_x, simcc_out_y]
+            )
+        else:
+            simcc_out_x, simcc_out_y = None, None
 
         # heatmap_out
-        # NOTE: the input should be a list of tensor
-        heatmap = self.heatmap_header(feats)
-        heatmap = rearrange(heatmap, "(b t) k h w -> t b k h w", t=T)
+        if not self.pure_inference and self.enable_heatmap:
+            # NOTE: the input should be a list of tensor
+            heatmap = self.heatmap_header(feats)
+            heatmap = rearrange(heatmap, "(b t) k h w -> t b k h w", t=T)
+        else:
+            heatmap = None
 
         return self.MultiTaskEncoderOut(
             out,
@@ -142,10 +156,18 @@ if __name__ == "__main__":
         n_keypoints_heatmap=17,
         simcc_x_samples=192 * 2,
         simcc_y_samples=256 * 2,
+        # enable_heatmap=False,
+        # enable_simcc=False,
     )
 
     input_data = torch.randn(1, 3, 16, 224, 224)
     output = model(input_data, torch.tensor([16]))
 
+    for name, _ in model.named_parameters():
+        print(name)
+
     for k, v in output._asdict().items():
+        if v is None:
+            print("none")
+            continue
         print(k, v.shape)

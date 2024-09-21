@@ -3,7 +3,8 @@
     "basedpyright": {
       "basedpyright.analysis.include": [
         "src",
-        "experiments"
+        "experiments",
+        "tools"
       ],
       "basedpyright.analysis.typeCheckingMode": "basic"
     }

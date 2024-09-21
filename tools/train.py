@@ -37,7 +37,7 @@ from torch.utils.tensorboard.writer import SummaryWriter
 @hydra.main(
     version_base="1.3.2",
     config_path="../configs",
-    config_name="run/train/resnet_transform_baseline.yaml",
+    config_name="run/train/resnet_transform_simcc_only.yaml",
 )
 def main(cfg: DictConfig):
     seed_everything(cfg.seed, workers=True)

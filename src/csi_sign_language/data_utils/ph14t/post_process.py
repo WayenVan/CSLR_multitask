@@ -37,9 +37,9 @@ def apply_hypothesis(hyp):
     hyp = [item for item in hyp if not item == "__LEFTHAND__"]
     hyp = [item for item in hyp if not item == "__EPENTHESIS__ "]
     hyp = [item for item in hyp if not item == "__EMOTION__"]
+
     # remove all words starting and ending with "__",
-    hyp = [re.sub(r"^__", "", item) for item in hyp]
-    hyp = [re.sub(r"__$", "", item) for item in hyp]
+    hyp = [re.sub(r" __[^_ ]*__$", "", item) for item in hyp]
 
     # remove all -PLUSPLUS suffixes
     hyp = [re.sub(r"-PLUSPLUS$", "", item) for item in hyp]
@@ -70,8 +70,7 @@ def apply_groundtruth(gt):
 
     # remove all words starting and ending with "__",
     # TODO: this is not right
-    gt = [re.sub(r"^__", "", item) for item in gt]
-    gt = [re.sub(r"__$", "", item) for item in gt]
+    gt = [re.sub(r" __[^_ ]*__$", "", item) for item in gt]
 
     # remove all -PLUSPLUS suffixes
     gt = [re.sub(r"-PLUSPLUS$", "", item) for item in gt]
