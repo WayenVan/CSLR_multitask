@@ -6,21 +6,10 @@ import pickle
 
 sys.path.append("src")
 from hydra.utils import instantiate
-from matplotlib import pyplot as plt
-import torch
-from csi_sign_language.data_utils.ph14.evaluator_sclite import Pheonix14Evaluator
 from csi_sign_language.data.datamodule.ph14 import Ph14DataModule
-
 from csi_sign_language.models.slr_model import SLRModel
-import hydra
-import os
-import json
-from datetime import datetime
 import click
-from torchmetrics.text import WordErrorRate
-
 from lightning.pytorch.trainer import Trainer
-from lightning.pytorch.strategies import DDPStrategy
 
 
 # output the result of test dataset as much as possible

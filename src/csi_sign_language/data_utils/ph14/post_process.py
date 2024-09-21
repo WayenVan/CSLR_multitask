@@ -1,7 +1,14 @@
 from typing import List, Tuple
 from itertools import groupby
 import re
-from ..interface_post_process import IPostProcess
+
+if __name__ == "__main__":
+    import sys
+
+    sys.path.append("src")
+    from csi_sign_language.data_utils.interface_post_process import IPostProcess
+else:
+    from ..interface_post_process import IPostProcess
 
 
 class PostProcess(IPostProcess):
@@ -143,5 +150,4 @@ def detect_wie(input):
 
 
 if __name__ == "__main__":
-    print(apply_regex(["S", "S+H", "C", "WRW"]))
-    print("a      b  c ".split())
+    print(apply_regex(["S", "S+H", "C", "E", "loc-HOHOHO", "__ON__", "__EMOTION__"]))

@@ -20,13 +20,9 @@ class PostProcess(IPostProcess):
         @ param hyp: batches of predicted labels
         @ param gt: batches of ground truth labels
         """
-        _hyp = apply_hypothesis(hyp)
-        _gt = apply_groundtruth(gt)
+        _hyp = [apply_hypothesis(h) for h in hyp]
+        _gt = [apply_groundtruth(t) for t in gt]
         return _hyp, _gt
-
-
-def merge_same(output: List[str]):
-    return [x[0] for x in groupby(output)]
 
 
 def apply_hypothesis(hyp):
@@ -39,7 +35,7 @@ def apply_hypothesis(hyp):
     hyp = [item for item in hyp if not item == "__EMOTION__"]
 
     # remove all words starting and ending with "__",
-    hyp = [re.sub(r" __[^_ ]*__$", "", item) for item in hyp]
+    hyp = [re.sub(r"__[^_ ]*__$", "", item) for item in hyp]
 
     # remove all -PLUSPLUS suffixes
     hyp = [re.sub(r"-PLUSPLUS$", "", item) for item in hyp]
@@ -70,7 +66,7 @@ def apply_groundtruth(gt):
 
     # remove all words starting and ending with "__",
     # TODO: this is not right
-    gt = [re.sub(r" __[^_ ]*__$", "", item) for item in gt]
+    gt = [re.sub(r"__[^_ ]*__$", "", item) for item in gt]
 
     # remove all -PLUSPLUS suffixes
     gt = [re.sub(r"-PLUSPLUS$", "", item) for item in gt]
@@ -144,6 +140,7 @@ if __name__ == "__main__":
     print(
         apply_groundtruth(
             [
+                "__NO__",
                 "A",
                 "B",
                 "B",
@@ -162,6 +159,7 @@ if __name__ == "__main__":
     print(
         apply_hypothesis(
             [
+                "__NO__",
                 "A+B+C",
                 "WIE",
                 "AUSSEHEN",
