@@ -6,20 +6,21 @@ from mmengine.config import Config
 from mmengine.registry.utils import init_default_scope
 from mmpose.apis import init_model
 from einops import rearrange
-from torch import Tensor
 import torch.nn.functional as F
 from torchvision.transforms.functional import normalize, resize
 
 if __name__ == "__main__":
     import sys
 
-    sys.path.append("/root/projects/sign_language_transformer/src")
+    sys.path.append("src")
     from csi_sign_language.modules.multitask_loss.dwpose_wrapper import (
         DWPoseWarpper,
     )
     from csi_sign_language.modules.multitask_loss.vitpose_wrapper import (
         ViTPoseWrapper,
     )
+    from csi_sign_language.modules.multitask_loss.seq_smooth import t_mse
+
 else:
     from .vitpose_wrapper import ViTPoseWrapper
     from .dwpose_wrapper import DWPoseWarpper
@@ -38,7 +39,7 @@ class MultiTaskDistillLossSmooth(nn.Module):
         dwpose_weight: float = 1.0,
         dwpose_dist_temperature: float = 8.0,
         smooth_weight: float = 1.0,
-        smooth_tau: float = 0.1,
+        smooth_tau: float = 3.0,
         *args,
         **kwargs,
     ) -> None:
@@ -93,7 +94,8 @@ class MultiTaskDistillLossSmooth(nn.Module):
             loss += self.vitpose_weight * vit_loss
 
         if self.smooth_weight > 0.0:
-            smooth_loss = t_mse(outputs.out, self.tau, outputs.t_length)
+            out = nn.functional.log_softmax(outputs.out, dim=-1).permute(1, 0, 2)
+            smooth_loss = t_mse(out, self.smooth_tau, outputs.t_length)
             loss += self.smooth_weight * smooth_loss
 
         return loss
@@ -155,7 +157,7 @@ class MultiTaskDistillLossSmooth(nn.Module):
 
 
 if __name__ == "__main__":
-    device = "cuda:1"
+    device = "cpu"
     loss = MultiTaskDistillLossSmooth(
         dwpose_cfg="/root/projects/sign_language_transformer/resources/dwpose-l/rtmpose-l_8xb64-270e_coco-ubody-wholebody-256x192.py",
         dwpose_ckpt="/root/projects/sign_language_transformer/resources/dwpose-l/dw-ll_ucoco.pth",
@@ -165,6 +167,8 @@ if __name__ == "__main__":
         dwpose_weight=1.0,
         vitpose_weight=1.0,
         dwpose_dist_temperature=8.0,
+        smooth_weight=1.0,
+        smooth_tau=1.0,
     ).to(device)
     classes = 100
     B = 2

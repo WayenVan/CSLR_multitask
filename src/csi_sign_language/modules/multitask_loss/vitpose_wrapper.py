@@ -54,7 +54,7 @@ class ViTPoseWrapper(nn.Module):
 if __name__ == "__main__":
     device = "cuda:0"
     # Read an image
-    image = cv2.imread("./outputs/frame_0.jpg")
+    image = cv2.imread("./resources/0.jpg")
     # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     # Map the image to [0, 1]
     image = image.astype(np.float32)
