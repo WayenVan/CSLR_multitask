@@ -1,0 +1,12 @@
+ph14:
+  lmdb_root: dataset/preprocessed/ph14_lmdb
+  root: dataset/phoenix2014-release
+
+resnet_cfg: resources/resnet/resnet18.py
+resnet_ckpt: resources/resnet/resnet18_8xb32_in1k_20210831-fbbb1da6.pth
+
+dwpose_cfg: resources/dwpose-l/rtmpose-l_8xb64-270e_coco-ubody-wholebody-256x192.py
+dwpose_ckpt: resources/dwpose-l/dw-ll_ucoco.pth
+
+vitpose_cfg: resources/ViTPose/td-hm_ViTPose-small_8xb64-210e_coco-256x192.py
+vitpose_ckpt: resources/ViTPose/td-hm_ViTPose-small_8xb64-210e_coco-256x192-62d7a712_20230314.pth

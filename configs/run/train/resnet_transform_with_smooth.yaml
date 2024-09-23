@@ -1,7 +1,6 @@
 #@package _global_
 defaults:
   - /prefix@_global_
-  - /resources@_global_
   - /hydra: no_output
   - /optimizer: adam
   - /lr_scheduler: multistep
@@ -10,6 +9,7 @@ defaults:
   - /transforms/test: 224x224
   - /model: resnet_simcc_trans
   - /loss: multitask_distill_with_smooth
+  - /resources: mec
 
 seed: 3407
 epoch: 200

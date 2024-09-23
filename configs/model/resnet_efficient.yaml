@@ -3,8 +3,8 @@ encoder:
   _target_: ${csi}.modules.MultiTaskEncoder
   backbone:
     _target_: ${csi}.modules.ResNetBackbone
-    ckpt: resources/resnet/resnet18_8xb32_in1k_20210831-fbbb1da6.pth
-    cfg: resources/resnet/resnet18.py
+    ckpt: ${resources.resnet_ckpt}
+    cfg: ${resources.resnet_cfg}
   n_keypoints_simcc: 133
   n_keypoints_heatmap: 17
   simcc_x_samples: 384
