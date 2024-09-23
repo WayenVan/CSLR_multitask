@@ -2,7 +2,7 @@ _target_: ${csi}.modules.base_stream.BaseStream
 encoder:
   _target_: ${csi}.modules.ResnetEncoder
   ckpt: resources/resnet/resnet18_8xb32_in1k_20210831-fbbb1da6.pth
-  cfg: /root/resources/resnet/resnet18.py
+  cfg: resources/resnet/resnet18.py
   drop_prob: 0.5
 decoder:
   _target_: ${csi}.modules.EfficientDecoder
