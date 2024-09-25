@@ -41,7 +41,7 @@ class DebugCallback(Callback):
 def test_model():
     config_path = Path(os.getcwd()) / "configs"
     hydra.initialize_config_dir(str(config_path.absolute()))
-    cfg = hydra.compose("run/train/efficientnet_transform")
+    cfg = hydra.compose("run/train/resnet50_transform_baseline")
     # cfg = hydra.compose('run/train/dual')
     index = 0
     print(socket.gethostname())

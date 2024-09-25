@@ -58,7 +58,7 @@ if __name__ == "__main__":
     import torch
 
     # model = TimmVisualBackbone("efficientnet_b0")
-    model = TimmVisualBackbone("mobilenetv3_small_050")
+    model = TimmVisualBackbone("resnet50")
     # print(model)
     print(model.get_input_size())
     print(model.get_output_feats_size())

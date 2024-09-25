@@ -7,29 +7,22 @@ defaults:
   - /datamodule: ph14
   - /transforms/train: 224x224
   - /transforms/test: 224x224
-  - /model: resnet_distill_efficient
-  - /loss: multitask_distill_with_smooth
+  - /model: resnet_50_trans
+  - /loss: multitask_distill_ctc_only
   - /resources: mec
 
 seed: 3407
 epoch: 200
 tags:
-  - simcc_only
-  - with_smooth
-  - resnet
+  - baseline
+  - resnet50
   - transform
 
 #if continuos read model
 load_weights: False
 is_resume: False
 checkpoint: outputs/train_lightning/2024-04-24_01-42-41/last.ckpt
-
-devices: [1]
-
-model:
-  encoder:
-    enable_heatmap: False
-    enable_simcc: True
+devices: [0]
 
 datamodule:
   batch_size: 2
@@ -42,11 +35,3 @@ optimizer:
 lr_scheduler:
   milestones: [40, 65, 80, 85, 90]
   gamma: 0.1
-
-loss:
-  ctc_weight: 1.0
-  dwpose_weight: 1.0
-  vitpose_weight: 0.
-  dwpose_dist_temperature: 8.0
-  smooth_weight: 1.0
-  smooth_tau: 3.0

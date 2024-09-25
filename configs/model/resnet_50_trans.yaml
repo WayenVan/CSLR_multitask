@@ -1,0 +1,31 @@
+_target_: ${csi}.modules.base_stream.BaseStream
+encoder:
+  _target_: ${csi}.modules.MultiTaskEncoder
+  backbone:
+    _target_: ${csi}.modules.TimmVisualBackbone
+    model_name: resnet50
+  drop_prob: 0.5
+  # we don't need all these
+  enable_heatmap: False
+  enable_simcc: False
+  n_keypoints_simcc: 0
+  n_keypoints_heatmap: 0
+  simcc_x_samples: 0
+  simcc_y_samples: 0
+neck:
+  _target_: ${csi}.modules.TemporalConvNeck
+  in_channels: 2048
+  out_channels: 1024
+  bottle_channels: 1024
+  n_class: 1296
+  with_header: False
+  pooling: max
+  dropout: 0.2
+decoder:
+  _target_: ${csi}.modules.TransformerDecoder
+  n_class: 1296
+  d_model: 1024
+  n_heads: 8
+  n_layers: 8
+  d_feedforward: 2048
+  dropout: 0.2

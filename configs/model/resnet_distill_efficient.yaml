@@ -9,8 +9,8 @@ encoder:
   n_keypoints_heatmap: 17
   simcc_x_samples: 384
   simcc_y_samples: 512
-  enable_heatmap: False
-  enable_simcc: true
+  enable_heatmap: True
+  enable_simcc: True
   drop_prob: 0.5
 decoder:
   _target_: ${csi}.modules.EfficientDecoder
@@ -19,7 +19,7 @@ decoder:
   n_layers: 8
   n_head: 8
   n_classes: 1296
-  bucket_size: 1
+  bucket_size: 4
   conv_kernel_head: 5
   conv_kernel_block: 3
   ff_dropout: 0.0

@@ -42,7 +42,12 @@ class VisualBackbone(ABC, nn.Module):
 
 class MultiTaskEncoder(nn.Module):
     """
-    support multiple visaul backbones
+    support differnet visual backbone for multi task processing
+
+                                             ┌───► Heatmap header ────► heatmap
+                                             ├───► Simcc Header ──────► x, y
+    visualbackbone ───► dropout ───► gap ────┴───► feature
+
     """
 
     def __init__(
