@@ -7,7 +7,7 @@ defaults:
   - /datamodule: ph14
   - /transforms/train: 224x224
   - /transforms/test: 224x224
-  - /model: resnet_simcc_trans
+  - /model: resnet_distill_efficient
   - /loss: multitask_distill
   - /resources: mec
 
@@ -18,12 +18,20 @@ tags:
   - resnet
   - transform
 
+model:
+  encoder:
+    enable_heatmap: false
+    enable_simcc: True
+    drop_prob: 0.0
+  decoder:
+    bucket_size: 1
+
 #if continuos read model
 load_weights: False
 is_resume: False
 checkpoint: outputs/train_lightning/2024-04-24_01-42-41/last.ckpt
 
-devices: [1]
+devices: [0]
 
 datamodule:
   batch_size: 2
@@ -39,6 +47,6 @@ lr_scheduler:
 
 loss:
   ctc_weight: 1.0
-  dwpose_weight: 1.0
+  dwpose_weight: 5.0
   vitpose_weight: 0.
   dwpose_dist_temperature: 8.0

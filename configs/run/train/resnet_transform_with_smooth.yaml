@@ -24,7 +24,7 @@ load_weights: False
 is_resume: False
 checkpoint: outputs/train_lightning/2024-04-24_01-42-41/last.ckpt
 
-devices: [1]
+devices: [0]
 
 model:
   encoder:
@@ -33,7 +33,7 @@ model:
 
 datamodule:
   batch_size: 2
-  num_workers: 6
+  num_workers: 5
   train_shuffle: False
 
 optimizer:
@@ -49,4 +49,4 @@ loss:
   vitpose_weight: 0.
   dwpose_dist_temperature: 8.0
   smooth_weight: 1.0
-  smooth_tau: 3.0
+  smooth_tau: 2.0
