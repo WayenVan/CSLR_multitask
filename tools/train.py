@@ -49,6 +49,18 @@ def main(cfg: DictConfig):
         "outputs", file_name[:-3], current_time.strftime("%Y-%m-%d_%H-%M-%S")
     )
 
+    ## build module
+    datamodule = instantiate(cfg.datamodule)
+    vocab = datamodule.get_vocab()
+
+    if cfg.load_weights:
+        lightning_module = SLRModel.load_from_checkpoint(cfg.checkpoint, cfg=cfg)
+    else:
+        lightning_module = SLRModel(cfg, vocab)
+
+    lightning_module.set_post_process(datamodule.get_post_process())
+
+    # set logger and others
     logger = build_logger()
     debug_callback = DebugCallback(logger, current_time.strftime("%Y-%m-%d_%H-%M-%S"))
     rich_callback = callbacks.RichProgressBar()
@@ -62,16 +74,6 @@ def main(cfg: DictConfig):
         save_top_k=1,
         auto_insert_metric_name=False,
     )
-
-    datamodule = instantiate(cfg.datamodule)
-    vocab = datamodule.get_vocab()
-
-    if cfg.load_weights:
-        lightning_module = SLRModel.load_from_checkpoint(cfg.checkpoint, cfg=cfg)
-    else:
-        lightning_module = SLRModel(cfg, vocab)
-
-    lightning_module.set_post_process(datamodule.get_post_process())
 
     t = trainer.Trainer(
         accelerator="gpu",
