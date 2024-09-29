@@ -1,16 +1,18 @@
 import torch
-import random
 from torch import nn
 from einops import rearrange
+from torch._prims_common import Tensor
 
 
-class BucketRandomAttention(nn.Module):
+class BucketRandomAttentionCausal(nn.Module):
     """
     This Module divdes the temporal dimension into buckets and only samples one element from each bucket.
     Implemented by torch.nn.Multihead, which is native self-attention, was faster
     """
 
-    def __init__(self, d_model, num_heads, bucket_size, *args, **kwargs) -> None:
+    def __init__(
+        self, d_model, num_heads, bucket_size, future=0, *args, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self.attn = nn.MultiheadAttention(
@@ -18,6 +20,7 @@ class BucketRandomAttention(nn.Module):
             num_heads,
         )
         self.bucket_size = bucket_size
+        self.future = future
 
     @staticmethod
     def split_list_into_groups(lst, group_size):
@@ -86,17 +89,35 @@ class BucketRandomAttention(nn.Module):
         mask = mask >= t_length
         return mask
 
+    # NOTE: only current indexes lower than lengths + future is avialiable, note that True means not attend
+    def _make_casual_mask_sampled(
+        self, Lq: int, Lk: int, sampled_index: Tensor, future=0
+    ):
+        assert Lq == Lk, "casual mask only works when using self attention"
+        device = sampled_index.device
+        origin_index = torch.arange(Lq, device=device)
+        origin_index = rearrange(origin_index, "l -> l 1")
+        sampled_index = rearrange(sampled_index, "s -> 1 s")
+
+        mask = origin_index + future < sampled_index
+        return mask
+
     def forward(self, q, k, v, key_length=None):
         # [t n c]
+
         Lk = k.shape[0]
+        Lq = q.shape[0]
+
         if self.bucket_size > 1:
             sampled_index = self.sample_index(Lk, q.device)
             modified_key_length = self.modify_key_length(key_length, sampled_index)
 
             k = k[sampled_index, :, :]
             v = v[sampled_index, :, :]
+
         elif self.bucket_size == 1:
             modified_key_length = key_length
+
         else:
             raise ValueError("Bucket size must be greater than 0")
 
@@ -105,14 +126,23 @@ class BucketRandomAttention(nn.Module):
         else:
             mask = None
 
-        return self.attn(q, k, v, key_padding_mask=mask)
+        if self.bucket_size == 1:
+            # just as original causal implementation in transformer
+            return self.attn(q, k, v, is_causal=True, key_padding_mask=mask)
+        if self.bucket_size > 1:
+            # her because we modified the keys, thus need new causal mask
+            attn_mask = self._make_casual_mask_sampled(
+                Lq, Lk, sampled_index, future=self.future
+            )
+            return self.attn(q, k, v, attn_mask=attn_mask, key_padding_mask=mask)
 
 
 if __name__ == "__main__":
-    attn = BucketRandomAttention(
+    attn = BucketRandomAttentionCausal(
         d_model=256,
         num_heads=8,
-        bucket_size=4,
+        bucket_size=2,
+        future=1,
     )
     qkv = torch.rand(23, 2, 256)
     result, _ = attn(qkv, qkv, qkv, key_length=torch.tensor([10, 20]))
