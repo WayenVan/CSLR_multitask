@@ -104,7 +104,12 @@ class EfficientDecoderBlock(nn.Module):
         super().__init__(*args, **kwargs)
 
         self.conv = nn.Conv1d(
-            dim, dim, conv_kernel_size, padding=1, bias=False, groups=dim
+            dim,
+            dim,
+            conv_kernel_size,
+            padding=conv_kernel_size // 2,
+            bias=False,
+            groups=dim,
         )
         self.bn = nn.BatchNorm1d(dim)
 

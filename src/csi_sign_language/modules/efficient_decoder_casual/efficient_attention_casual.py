@@ -82,7 +82,7 @@ class BucketRandomAttentionCausal(nn.Module):
         @param temporal_dim: int, the max length of the temporal dimension
         """
         B = t_length.size(dim=0)
-        mask = torch.range(0, temporal_dim - 1, device=t_length.device)
+        mask = torch.arange(temporal_dim, device=t_length.device)
         mask = rearrange(mask, "t -> 1 t")
         t_length = rearrange(t_length, "b -> b 1")
 
@@ -117,6 +117,7 @@ class BucketRandomAttentionCausal(nn.Module):
 
         elif self.bucket_size == 1:
             modified_key_length = key_length
+            sampled_index = torch.arange(Lk, device=q.device)
 
         else:
             raise ValueError("Bucket size must be greater than 0")
@@ -126,23 +127,19 @@ class BucketRandomAttentionCausal(nn.Module):
         else:
             mask = None
 
-        if self.bucket_size == 1:
-            # just as original causal implementation in transformer
-            return self.attn(q, k, v, is_causal=True, key_padding_mask=mask)
-        if self.bucket_size > 1:
             # her because we modified the keys, thus need new causal mask
-            attn_mask = self._make_casual_mask_sampled(
-                Lq, Lk, sampled_index, future=self.future
-            )
-            return self.attn(q, k, v, attn_mask=attn_mask, key_padding_mask=mask)
+        attn_mask = self._make_casual_mask_sampled(
+            Lq, Lk, sampled_index, future=self.future
+        )
+        return self.attn(q, k, v, attn_mask=attn_mask, key_padding_mask=mask)
 
 
 if __name__ == "__main__":
     attn = BucketRandomAttentionCausal(
         d_model=256,
         num_heads=8,
-        bucket_size=2,
-        future=1,
+        bucket_size=1,
+        future=0,
     )
     qkv = torch.rand(23, 2, 256)
     result, _ = attn(qkv, qkv, qkv, key_length=torch.tensor([10, 20]))

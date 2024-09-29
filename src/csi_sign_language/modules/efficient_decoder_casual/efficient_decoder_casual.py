@@ -10,21 +10,13 @@ if __name__ == "__main__":
 
     sys.path.append("src")
     from csi_sign_language.modules.components.drop_path import DropPath
-    from csi_sign_language.modules.efficient_decoder.efficient_attention import (
-        # SparseAttention,
-        BucketRandomAttention,
-        # DiagonalMaskGenerator,
-        # RandomBucketMaskGenerator,
+    from csi_sign_language.modules.efficient_decoder_casual.efficient_attention_casual import (
+        BucketRandomAttentionCausal,
     )
 
 else:
     from ..components.drop_path import DropPath
-    from .efficient_attention import (
-        # SparseAttention,
-        BucketRandomAttention,
-        # DiagonalMaskGenerator,
-        # RandomBucketMaskGenerator,
-    )
+    from .efficient_attention_casual import BucketRandomAttentionCausal
 
 
 class ConvHeader(nn.Module):
@@ -85,9 +77,10 @@ class ConvHeader(nn.Module):
         return x, t_length
 
 
-class EfficientDecoderBlock(nn.Module):
+class EfficientDecoderCasualBlock(nn.Module):
     """
-    Depth Convolution -> BN -> SparseAttention -> BN -> MLP -> BN
+    # LN ──► SparseAttention ──► LN ──► MPP ──► LN
+    Remove 1dCOnv so it won't influence the causality
     """
 
     def __init__(
@@ -98,20 +91,34 @@ class EfficientDecoderBlock(nn.Module):
         conv_kernel_size=3,
         ff_dropout=0.0,
         drop_path=0.0,
+        future=0,
         *args,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
 
-        self.conv = nn.Conv1d(
-            dim, dim, conv_kernel_size, padding=1, bias=False, groups=dim
-        )
+        # its already causal if future,
+        if future >= conv_kernel_size // 2:
+            self.conv = nn.Conv1d(
+                dim, dim, conv_kernel_size, padding=1, bias=False, groups=dim
+            )
+        elif future < conv_kernel_size // 2:
+            self.conv = nn.Conv1d(
+                dim,
+                dim,
+                conv_kernel_size,
+                padding=(conv_kernel_size - 1 + future, future),
+                bias=False,
+                groups=dim,
+            )
         self.bn = nn.BatchNorm1d(dim)
+        # self.norm_in = nn.LayerNorm(dim)
 
-        self.attn = BucketRandomAttention(
+        self.attn = BucketRandomAttentionCausal(
             dim,
             n_head,
             bucket_size=bucket_size,
+            future=future,
         )
 
         self.ff = MLP(
@@ -125,11 +132,14 @@ class EfficientDecoderBlock(nn.Module):
         self.drop_path = DropPath(drop_path)
 
     def forward(self, x, t_length):
+        """
+        @param x: [T B C]
+        """
         x = rearrange(x, "t b c -> b c t")
         x = self.conv(x) + self.drop_path(x)
         x = self.bn(x)
         x = rearrange(x, "b c t -> t b c")
-
+        # x = self.norm_in(x)
         x = self.attn(x, x, x, key_length=t_length)[0] + self.drop_path(x)
         x = self.norm1(x)
         x = self.ff(x) + self.drop_path(x)
@@ -137,7 +147,7 @@ class EfficientDecoderBlock(nn.Module):
         return x
 
 
-class EfficientDecoder(nn.Module):
+class EfficientDecoderCasual(nn.Module):
     def __init__(
         self,
         input_dims,
@@ -148,6 +158,7 @@ class EfficientDecoder(nn.Module):
         bucket_size,
         conv_kernel_head=5,
         conv_kernel_block=3,
+        future=0,
         ff_dropout=0.0,
         drop_path=0.0,
         *args,
@@ -155,17 +166,17 @@ class EfficientDecoder(nn.Module):
     ) -> None:
         super().__init__(*args, **kwargs)
         self.head = ConvHeader(input_dims, d_model, d_model, conv_kernel_head)
-
         self.blocks = nn.ModuleList()
         for _ in range(n_layers):
             self.blocks.append(
-                EfficientDecoderBlock(
+                EfficientDecoderCasualBlock(
                     d_model,
                     n_head,
                     bucket_size,
                     conv_kernel_block,
                     ff_dropout,
                     drop_path,
+                    future=future,
                 )
             )
 
@@ -186,7 +197,7 @@ class EfficientDecoder(nn.Module):
 
 
 if __name__ == "__main__":
-    model = EfficientDecoder(50, 80, 3, 8, 1296, 4, 5, 3, 0.0, 0.0)
+    model = EfficientDecoderCasual(50, 80, 3, 8, 1296, 1, 5, 3, 3, 0.0, 0.0)
     x = torch.rand(20, 2, 50)
     t_length = torch.tensor([20, 20], dtype=torch.int64)
     out = model(x, t_length)
