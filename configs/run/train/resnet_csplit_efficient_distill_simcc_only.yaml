@@ -32,6 +32,12 @@ model:
     enable_simcc: True
     drop_prob: 0.0
 
+loss:
+  ctc_weight: 1.0
+  dwpose_weight: 1.0
+  vitpose_weight: 0.0
+  dwpose_dist_temperature: 8.0
+
 #if continuos read model
 load_weights: False
 is_resume: False

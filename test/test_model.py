@@ -54,11 +54,11 @@ def test_model():
     lightning_module.set_post_process(datamodule.get_post_process())
 
     t = Trainer(
-        accelerator="gpu",
+        accelerator="cpu",
         strategy="ddp_find_unused_parameters_true",
         # strategy='deepspeed_stage_2',
         # max_steps=100,
-        devices=getattr(cfg, "devices", [1]),
+        # devices=getattr(cfg, "devices", [1]),
         logger=False,
         enable_checkpointing=False,
         precision=16,
