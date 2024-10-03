@@ -75,6 +75,8 @@ class MultiTaskDistillLoss(nn.Module):
 
     def forward(self, outputs, input, input_length, target, target_length):
         loss = 0.0
+
+        ctc_loss = None
         if self.ctc_weight > 0.0:
             out = nn.functional.log_softmax(outputs.out, dim=-1)
             ctc_loss = self._loss_ctc(
@@ -82,12 +84,14 @@ class MultiTaskDistillLoss(nn.Module):
             ).mean()
             loss += self.ctc_weight * ctc_loss
 
+        dwpose_loss = None
         if self.dwpose_weight > 0.0:
             dwpose_loss = self.distill_loss_simcc(
                 outputs.encoder_out.simcc_out_x, outputs.encoder_out.simcc_out_y, input
             )
             loss += self.dwpose_weight * dwpose_loss
 
+        vit_loss = None
         if self.vitpose_weight > 0.0:
             vit_loss = self.distill_loss_heatmap(outputs.encoder_out.heatmap, input)
             loss += self.vitpose_weight * vit_loss
