@@ -186,7 +186,30 @@ class SLRModel(L.LightningModule):
 
         with torch.inference_mode():
             outputs = self.backbone(video, video_length)
-            loss = self.loss(outputs, video, video_length, gloss, gloss_length)
+            loss_output = self.loss(outputs, video, video_length, gloss, gloss_length)
+            if is_namedtuple_instance(loss_output):
+                loss = loss_output.out
+                for key, value in loss_output._asdict().items():
+                    self.log(
+                        f"val_loss_{key}",
+                        value,
+                        on_epoch=True,
+                        on_step=True,
+                        prog_bar=True,
+                        sync_dist=True,
+                        batch_size=B,
+                    )
+            else:
+                loss = loss_output
+                self.log(
+                    "val_loss",
+                    loss,
+                    on_epoch=True,
+                    on_step=True,
+                    prog_bar=True,
+                    sync_dist=True,
+                    batch_size=B,
+                )
 
         hyp = self._ctc_decode(outputs.out, outputs.t_length)[0]
         if self.post_process:
@@ -194,14 +217,6 @@ class SLRModel(L.LightningModule):
         else:
             raise NotImplementedError()
 
-        self.log(
-            "val_loss",
-            loss.detach(),
-            on_epoch=True,
-            on_step=False,
-            sync_dist=True,
-            batch_size=B,
-        )
         self.log(
             "val_wer",
             wer_calculation(gt, hyp),
