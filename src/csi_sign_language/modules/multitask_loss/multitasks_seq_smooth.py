@@ -147,6 +147,7 @@ class MultiTaskDistillLossSmooth(nn.Module):
         """
         T = out_logits_x.shape[0]
         B = out_logits_x.shape[1]
+        K = out_logits_x.shape[2]
         input = rearrange(input, "b c t h w -> (b t) c h w")
         input = resize(input, list(self.dwpose_intput_size))
 
@@ -180,7 +181,9 @@ class MultiTaskDistillLossSmooth(nn.Module):
         loss_pointwise_y = nn.functional.kl_div(
             out_logits_y, target_logits_y.detach(), log_target=True, reduction="none"
         )
-        return loss_pointwise_x.sum() / B + loss_pointwise_y.sum() / B
+        return loss_pointwise_x.sum() / (B * T * K) + loss_pointwise_y.sum() / (
+            B * T * K
+        )
 
 
 if __name__ == "__main__":

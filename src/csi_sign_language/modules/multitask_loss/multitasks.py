@@ -124,6 +124,7 @@ class MultiTaskDistillLoss(nn.Module):
         """
         T = out_logits_x.shape[0]
         B = out_logits_x.shape[1]
+        K = out_logits_x.shape[2]
         input = rearrange(input, "b c t h w -> (b t) c h w")
         input = resize(input, list(self.dwpose_intput_size))
 
@@ -157,7 +158,9 @@ class MultiTaskDistillLoss(nn.Module):
         loss_pointwise_y = nn.functional.kl_div(
             out_logits_y, target_logits_y.detach(), log_target=True, reduction="none"
         )
-        return loss_pointwise_x.sum() / B + loss_pointwise_y.sum() / B
+        return loss_pointwise_x.sum() / (B * T * K) + loss_pointwise_y.sum() / (
+            B * T * K
+        )
 
 
 if __name__ == "__main__":
@@ -168,7 +171,7 @@ if __name__ == "__main__":
         vitpose_cfg="resources/ViTPose/td-hm_ViTPose-small_8xb64-210e_coco-256x192.py",
         vitpose_ckpt="resources/ViTPose/td-hm_ViTPose-small_8xb64-210e_coco-256x192-62d7a712_20230314.pth",
         ctc_weight=1.0,
-        dwpose_weight=0.5,
+        dwpose_weight=10.0,
         vitpose_weight=1.0,
         dwpose_dist_temperature=8.0,
     ).to(device)
