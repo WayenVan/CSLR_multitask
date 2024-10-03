@@ -158,9 +158,7 @@ class MultiTaskDistillLoss(nn.Module):
         loss_pointwise_y = nn.functional.kl_div(
             out_logits_y, target_logits_y.detach(), log_target=True, reduction="none"
         )
-        return loss_pointwise_x.sum() / (B * T * K) + loss_pointwise_y.sum() / (
-            B * T * K
-        )
+        return loss_pointwise_x.sum() / (B * T) + loss_pointwise_y.sum() / (B * T)
 
 
 if __name__ == "__main__":
