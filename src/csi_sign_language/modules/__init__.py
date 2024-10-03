@@ -5,6 +5,7 @@ from .efficient_decoder.efficient_attention import (
     # DiagonalMaskGenerator,
     BucketRandomAttention,
 )
+from .efficient_decoder_casual.efficient_decoder_casual import EfficientDecoderCasual
 
 from .multitask_encoder.multitask_encoder import MultiTaskEncoder
 from .multitask_encoder.visual_backbones.resnet import ResNetBackbone

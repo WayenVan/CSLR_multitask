@@ -9,11 +9,12 @@ from einops import rearrange
 from torch import Tensor
 import torch.nn.functional as F
 from torchvision.transforms.functional import normalize, resize
+from collections import namedtuple
 
 if __name__ == "__main__":
     import sys
 
-    sys.path.append("/root/projects/sign_language_transformer/src")
+    sys.path.append("src")
     from csi_sign_language.modules.multitask_loss.dwpose_wrapper import (
         DWPoseWarpper,
     )
@@ -23,6 +24,11 @@ if __name__ == "__main__":
 else:
     from .vitpose_wrapper import ViTPoseWrapper
     from .dwpose_wrapper import DWPoseWarpper
+
+
+MultiTaskDistillLossOut = namedtuple(
+    "MultiTaskDistillLossOut", ["out", "ctc_loss", "dwpose_loss", "vit_loss"]
+)
 
 
 class MultiTaskDistillLoss(nn.Module):
@@ -86,7 +92,9 @@ class MultiTaskDistillLoss(nn.Module):
             vit_loss = self.distill_loss_heatmap(outputs.encoder_out.heatmap, input)
             loss += self.vitpose_weight * vit_loss
 
-        return loss
+        return MultiTaskDistillLossOut(
+            out=loss, ctc_loss=ctc_loss, dwpose_loss=dwpose_loss, vit_loss=vit_loss
+        )
 
     def distill_loss_heatmap(self, heatmap: Tensor, input: Tensor):
         """
@@ -130,7 +138,8 @@ class MultiTaskDistillLoss(nn.Module):
         )
         # log_softmax
         target_logits_x, target_logits_y = (
-            nn.functional.softmax(a, dim=-1) for a in (target_logits_x, target_logits_y)
+            nn.functional.log_softmax(a, dim=-1)
+            for a in (target_logits_x, target_logits_y)
         )
         out_logitx_x, out_logits_y = (
             nn.functional.log_softmax(a, dim=-1) for a in (out_logitx_x, out_logits_y)
@@ -138,14 +147,14 @@ class MultiTaskDistillLoss(nn.Module):
 
         # distillation with temperature
         return nn.functional.kl_div(
-            out_logitx_x, target_logits_x.detach()
+            out_logitx_x, target_logits_x.detach(), log_target=True
         ) + nn.functional.kl_div(
             out_logits_y, target_logits_y.detach(), log_target=True
         )
 
 
 if __name__ == "__main__":
-    device = "cuda:1"
+    device = "cpu"
     loss = MultiTaskDistillLoss(
         dwpose_cfg="/root/projects/sign_language_transformer/resources/dwpose-l/rtmpose-l_8xb64-270e_coco-ubody-wholebody-256x192.py",
         dwpose_ckpt="/root/projects/sign_language_transformer/resources/dwpose-l/dw-ll_ucoco.pth",
@@ -195,5 +204,6 @@ if __name__ == "__main__":
     target_length = torch.tensor([L] * B).to(device)
 
     # Calculate loss
-    loss_value = loss(outputs, input, input_length, target, target_length)
-    print(f"Calculated loss: {loss_value.item()}")
+    loss = loss(outputs, input, input_length, target, target_length)
+    for k, v in loss._asdict().items():
+        print(k, v)

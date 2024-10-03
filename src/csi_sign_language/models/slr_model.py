@@ -4,9 +4,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from pathlib import Path
 import sys
-from typing import List, Any, Union
+from typing import List, Any, Union, NamedTuple
 from einops import rearrange
 from ..utils.decode import CTCBeamDecoder
+from ..utils.misc import is_namedtuple_instance
 from hydra.utils import instantiate
 
 import lightning as L
@@ -18,7 +19,6 @@ from csi_sign_language.modules.losses.loss import VACLoss as _VACLoss
 from csi_sign_language.data_utils.ph14.wer_evaluation_python import wer_calculation
 import pickle
 
-from typing import List
 from ..data_utils.interface_post_process import IPostProcess
 
 # TestResult = namedtuple(
@@ -126,41 +126,44 @@ class SLRModel(L.LightningModule):
 
         try:
             outputs = self.backbone(video, video_length)
-            loss = self.loss(outputs, video, video_length, gloss, gloss_length)
+            loss_output = self.loss(outputs, video, video_length, gloss, gloss_length)
+            # NOTE: loss could be namedtuple or a value, when neamedtuple, log all losses provided inside
+            if is_namedtuple_instance(loss_output):
+                loss = loss_output.out
+                for key, value in loss_output._asdict().items():
+                    self.log(
+                        f"train_loss_{key}",
+                        value,
+                        on_epoch=True,
+                        on_step=True,
+                        prog_bar=True,
+                        sync_dist=True,
+                        batch_size=B,
+                    )
+            else:
+                loss = loss_output
+                self.log(
+                    "train_loss",
+                    loss,
+                    on_epoch=True,
+                    on_step=True,
+                    prog_bar=True,
+                    sync_dist=True,
+                    batch_size=B,
+                )
         except torch.cuda.OutOfMemoryError as e:
             print(f"cuda out of memory! the t_length is {video.size(2)}")
             raise e
 
-        # if we should skip this batch
-        # skip_flag = torch.tensor(0, dtype=torch.uint8, device=self.device)
-        # if any(i in self.data_excluded for i in id):
-        #     skip_flag = torch.tensor(1, dtype=torch.uint8, device=self.device)
         if torch.isnan(loss) or torch.isinf(loss):
             self.print(
                 f"find nan, data id={id}, output length={outputs.t_length.cpu().numpy()}, label_length={gloss_length.cpu().numpy()}",
                 file=sys.stderr,
             )
             raise ValueError("find nan in loss")
-            # skip_flag = torch.tensor(1, dtype=torch.uint8, device=self.device)
-        # flags = self.all_gather(skip_flag)
-        # if (flags > 0).any().item():
-        #     del outputs
-        #     del loss
-        #     self.print(flags)
-        #     self.print("skipped", file=sys.stderr)
-        #     return
 
         hyp = self._ctc_decode(outputs.out.detach(), outputs.t_length.detach())[0]
 
-        self.log(
-            "train_loss",
-            loss,
-            on_epoch=True,
-            on_step=True,
-            prog_bar=True,
-            sync_dist=True,
-            batch_size=B,
-        )
         self.log(
             "train_wer",
             wer_calculation(gloss_gt, hyp),

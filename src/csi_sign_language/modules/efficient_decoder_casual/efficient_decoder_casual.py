@@ -79,7 +79,10 @@ class ConvHeader(nn.Module):
 
 class EfficientDecoderCasualBlock(nn.Module):
     """
-    # LN ──► SparseAttention ──► LN ──► MPP ──► LN
+    # DConv(Causal) ──► BN ────────► SparseAttention ──► LN ──► MPP ──► LN
+
+    token_0 -> frames: (k//2)*step+k//2+1
+    token+1 -> frames: step**2
     Remove 1dCOnv so it won't influence the causality
     """
 

@@ -8,6 +8,7 @@ from mmpose.apis import init_model
 from einops import rearrange
 import torch.nn.functional as F
 from torchvision.transforms.functional import normalize, resize
+from collections import namedtuple
 
 if __name__ == "__main__":
     import sys
@@ -25,6 +26,18 @@ else:
     from .vitpose_wrapper import ViTPoseWrapper
     from .dwpose_wrapper import DWPoseWarpper
     from .seq_smooth import t_mse
+
+
+MultiTaskDistillLossSmoothOut = namedtuple(
+    "MultiTaskDistillLossSmoothOut",
+    [
+        "out",
+        "ctc_loss",
+        "dwpose_loss",
+        "vit_loss",
+        "smmooth_loss",
+    ],
+)
 
 
 class MultiTaskDistillLossSmooth(nn.Module):
@@ -76,6 +89,7 @@ class MultiTaskDistillLossSmooth(nn.Module):
 
     def forward(self, outputs, input, input_length, target, target_length):
         loss = 0.0
+        ctc_loss = None
         if self.ctc_weight > 0.0:
             out = nn.functional.log_softmax(outputs.out, dim=-1)
             ctc_loss = self._loss_ctc(
@@ -83,22 +97,31 @@ class MultiTaskDistillLossSmooth(nn.Module):
             ).mean()
             loss += self.ctc_weight * ctc_loss
 
+        dwpose_loss = None
         if self.dwpose_weight > 0.0:
             dwpose_loss = self.distill_loss_simcc(
                 outputs.encoder_out.simcc_out_x, outputs.encoder_out.simcc_out_y, input
             )
             loss += self.dwpose_weight * dwpose_loss
 
+        vit_loss = None
         if self.vitpose_weight > 0.0:
             vit_loss = self.distill_loss_heatmap(outputs.encoder_out.heatmap, input)
             loss += self.vitpose_weight * vit_loss
 
+        smmooth_loss = None
         if self.smooth_weight > 0.0:
             out = nn.functional.log_softmax(outputs.out, dim=-1).permute(1, 0, 2)
             smooth_loss = t_mse(out, self.smooth_tau, outputs.t_length)
             loss += self.smooth_weight * smooth_loss
 
-        return loss
+        return MultiTaskDistillLossSmoothOut(
+            out=loss,
+            ctc_loss=ctc_loss,
+            dwpose_loss=dwpose_loss,
+            vit_loss=vit_loss,
+            smmooth_loss=smmooth_loss,
+        )
 
     def distill_loss_heatmap(self, heatmap: Tensor, input: Tensor):
         """
@@ -142,7 +165,8 @@ class MultiTaskDistillLossSmooth(nn.Module):
         )
         # log_softmax
         target_logits_x, target_logits_y = (
-            nn.functional.softmax(a, dim=-1) for a in (target_logits_x, target_logits_y)
+            nn.functional.log_softmax(a, dim=-1)
+            for a in (target_logits_x, target_logits_y)
         )
         out_logitx_x, out_logits_y = (
             nn.functional.log_softmax(a, dim=-1) for a in (out_logitx_x, out_logits_y)
@@ -150,7 +174,7 @@ class MultiTaskDistillLossSmooth(nn.Module):
 
         # distillation with temperature
         return nn.functional.kl_div(
-            out_logitx_x, target_logits_x.detach()
+            out_logitx_x, target_logits_x.detach(), log_target=True
         ) + nn.functional.kl_div(
             out_logits_y, target_logits_y.detach(), log_target=True
         )
@@ -209,5 +233,8 @@ if __name__ == "__main__":
     target_length = torch.tensor([L] * B).to(device)
 
     # Calculate loss
-    loss_value = loss(outputs, input, input_length, target, target_length)
-    print(f"Calculated loss: {loss_value.item()}")
+    loss = loss(outputs, input, input_length, target, target_length)
+    print(f"Calculated loss: {loss.out.item()}")
+    for k, v in loss._asdict().items():
+        if v is not None:
+            print(f"{k}: {v.item()}")

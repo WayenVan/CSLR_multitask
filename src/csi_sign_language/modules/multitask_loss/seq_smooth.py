@@ -24,7 +24,7 @@ def t_mse(y: Tensor, tau, t_length=None):
     loss = torch.sum(delta_t_hat**2, dim=(-1)) / C
 
     if t_length is not None:
-        mask = torch.range(0, T - 1, device=y.device).expand(
+        mask = torch.arange(T, device=y.device).expand(
             y.shape[:-2] + (T,)
         ) < t_length.unsqueeze(-1)
         mask = torch.zeros_like(mask, device=y.device).masked_fill(mask, 1).float()

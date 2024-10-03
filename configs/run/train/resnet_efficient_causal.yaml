@@ -1,0 +1,43 @@
+#@package _global_
+defaults:
+  - /prefix@_global_
+  - /hydra: no_output
+  - /optimizer: adam
+  - /lr_scheduler: step
+  - /datamodule: ph14
+  - /transforms/train: 224x224
+  - /transforms/test: 224x224
+  - /model: resnet_efficient_casual
+  - /loss: multitask_distill
+  - /resources: mec
+
+seed: 3407
+epoch: 200
+tags:
+  - resnet
+  - sparse_attention
+  - casual
+
+loss:
+  ctc_weight: 1.0
+  dwpose_weight: 0.0
+  vitpose_weight: 0.0
+  dwpose_dist_temperature: 0.0
+
+#if continuos read model
+load_weights: False
+is_resume: False
+checkpoint: outputs/train_lightning/2024-04-24_01-42-41/last.ckpt
+devices: [1]
+
+datamodule:
+  batch_size: 2
+  num_workers: 4
+  train_shuffle: False
+
+optimizer:
+  lr: 1e-4
+
+lr_scheduler:
+  step_size: 40
+  gamma: 0.1

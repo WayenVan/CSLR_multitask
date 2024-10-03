@@ -28,7 +28,7 @@ class ResNetBackbone(VisualBackbone):
         B, C, T, H, W = x.shape
         assert (H, W) == self.input_size
 
-        T = int(x.size(2))
+        # T = int(x.size(2))
         x = rearrange(x, "b c t h w -> (b t) c h w")
         x = self.resnet_forward(x)
         x = tuple(rearrange(a, "(b t) c h w -> b c t h w", t=T) for a in x)

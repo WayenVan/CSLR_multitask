@@ -4,22 +4,37 @@ import gc
 import torch
 import torch
 
+
 def clean():
     gc.collect()
     torch.cuda.empty_cache()
+
 
 def info(l: Logger, m):
     if l is not None:
         l.info(m)
 
+
 def warn(l: Logger, m):
     if l is not None:
         l.warn(m)
 
+
 def add_attributes(obj, locals: dict):
     for key, value in locals.items():
-        if key != 'self' and key != '__class__': 
+        if key != "self" and key != "__class__":
             setattr(obj, key, value)
+
+
+def is_namedtuple_instance(x):
+    _type = type(x)
+    bases = _type.__bases__
+    if len(bases) != 1 or bases[0] != tuple:
+        return False
+    fields = getattr(_type, "_fields", None)
+    if not isinstance(fields, tuple):
+        return False
+    return all(isinstance(field, str) for field in fields)
 
 
 def is_debugging():
@@ -40,3 +55,4 @@ def is_debugging():
         return True
 
     return False
+

@@ -108,7 +108,7 @@ class MultiTaskEncoder(nn.Module):
         @param t_length: (b,)
         @return: out (b, c, t), simcc_out_x (t, b, k, l), simcc_out_y (t, b, k, l), t_length (b,)
         """
-        T = int(x.size(2))
+        T = x.size(2)
 
         # NOTE: x is a list of tensors,
         feats, t_length = self.backbone(x, t_length)
@@ -116,7 +116,7 @@ class MultiTaskEncoder(nn.Module):
         out = self.dropout(out)
         out = self.gap(out)
 
-        feats = tuple(rearrange(a, "b c t h w -> (b t) c h w", t=T) for a in feats)
+        feats = tuple(rearrange(a, "b c t h w -> (b t) c h w") for a in feats)
         # simcc_out
         if not self.pure_inference and self.enable_simcc:
             # NOTE: the input should be a list of tensor, only run when the model is not training

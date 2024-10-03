@@ -1,0 +1,19 @@
+_target_: ${csi}.modules.base_stream.BaseStream
+encoder:
+  _target_: ${csi}.modules.ResnetEncoder
+  ckpt: ${resources.resnet_ckpt}
+  cfg: ${resources.resnet_cfg}
+  drop_prob: 0.5
+decoder:
+  _target_: ${csi}.modules.EfficientDecoderCasual
+  input_dims: 512
+  d_model: 1024
+  n_layers: 8
+  n_head: 8
+  n_classes: 1296
+  bucket_size: 1
+  future: 1
+  conv_kernel_head: 5
+  conv_kernel_block: 3
+  ff_dropout: 0.0
+  drop_path: 0.0
