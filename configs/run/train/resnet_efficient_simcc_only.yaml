@@ -47,6 +47,6 @@ lr_scheduler:
 
 loss:
   ctc_weight: 1.0
-  dwpose_weight: 5.0
+  dwpose_weight: 10.0
   vitpose_weight: 0.
   dwpose_dist_temperature: 8.0
