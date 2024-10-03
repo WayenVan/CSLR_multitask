@@ -131,15 +131,16 @@ class SLRModel(L.LightningModule):
             if is_namedtuple_instance(loss_output):
                 loss = loss_output.out
                 for key, value in loss_output._asdict().items():
-                    self.log(
-                        f"train_loss_{key}",
-                        value,
-                        on_epoch=True,
-                        on_step=True,
-                        prog_bar=True,
-                        sync_dist=True,
-                        batch_size=B,
-                    )
+                    if value is not None:
+                        self.log(
+                            f"train_loss_{key}",
+                            value,
+                            on_epoch=True,
+                            on_step=True,
+                            prog_bar=True,
+                            sync_dist=True,
+                            batch_size=B,
+                        )
             else:
                 loss = loss_output
                 self.log(
@@ -190,15 +191,16 @@ class SLRModel(L.LightningModule):
             if is_namedtuple_instance(loss_output):
                 loss = loss_output.out
                 for key, value in loss_output._asdict().items():
-                    self.log(
-                        f"val_loss_{key}",
-                        value,
-                        on_epoch=True,
-                        on_step=True,
-                        prog_bar=True,
-                        sync_dist=True,
-                        batch_size=B,
-                    )
+                    if value is not None:
+                        self.log(
+                            f"val_loss_{key}",
+                            value,
+                            on_epoch=True,
+                            on_step=True,
+                            prog_bar=True,
+                            sync_dist=True,
+                            batch_size=B,
+                        )
             else:
                 loss = loss_output
                 self.log(
