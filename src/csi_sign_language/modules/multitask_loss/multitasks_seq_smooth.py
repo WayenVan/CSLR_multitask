@@ -139,23 +139,24 @@ class MultiTaskDistillLossSmooth(nn.Module):
         return nn.functional.mse_loss(out_heatmap, target_heatmap).mean()
 
     def distill_loss_simcc(
-        self, out_logitx_x: Tensor, out_logits_y: Tensor, input: Tensor
+        self, out_logits_x: Tensor, out_logits_y: Tensor, input: Tensor
     ):
         """
         @param out_x, out_y, x, y: SimCC output logits [t b k l]
         @pararm input: [b c t h w]
         """
-        T = out_logitx_x.shape[0]
+        T = out_logits_x.shape[0]
+        B = out_logits_x.shape[1]
         input = rearrange(input, "b c t h w -> (b t) c h w")
         input = resize(input, list(self.dwpose_intput_size))
 
         target_logits_x, target_logits_y = self.dwpose(input)
-        out_logitx_x, out_logits_y = (
-            rearrange(a, "t b k l -> (b t) k l") for a in (out_logitx_x, out_logits_y)
+        out_logits_x, out_logits_y = (
+            rearrange(a, "t b k l -> (b t) k l") for a in (out_logits_x, out_logits_y)
         )
 
         # assertion
-        assert target_logits_x.shape == out_logitx_x.shape
+        assert target_logits_x.shape == out_logits_x.shape
         assert target_logits_y.shape == out_logits_y.shape
 
         # x, y are all logits here
@@ -168,16 +169,18 @@ class MultiTaskDistillLossSmooth(nn.Module):
             nn.functional.log_softmax(a, dim=-1)
             for a in (target_logits_x, target_logits_y)
         )
-        out_logitx_x, out_logits_y = (
-            nn.functional.log_softmax(a, dim=-1) for a in (out_logitx_x, out_logits_y)
+        out_logits_x, out_logits_y = (
+            nn.functional.log_softmax(a, dim=-1) for a in (out_logits_x, out_logits_y)
         )
 
         # distillation with temperature
-        return nn.functional.kl_div(
-            out_logitx_x, target_logits_x.detach(), log_target=True
-        ) + nn.functional.kl_div(
-            out_logits_y, target_logits_y.detach(), log_target=True
+        loss_pointwise_x = nn.functional.kl_div(
+            out_logits_x, target_logits_x.detach(), log_target=True, reduction="none"
         )
+        loss_pointwise_y = nn.functional.kl_div(
+            out_logits_y, target_logits_y.detach(), log_target=True, reduction="none"
+        )
+        return loss_pointwise_x.sum() / B + loss_pointwise_y.sum() / B
 
 
 if __name__ == "__main__":
