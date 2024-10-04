@@ -35,7 +35,7 @@ MultiTaskDistillLossSmoothOut = namedtuple(
         "ctc_loss",
         "dwpose_loss",
         "vit_loss",
-        "smmooth_loss",
+        "smooth_loss",
     ],
 )
 
@@ -109,7 +109,7 @@ class MultiTaskDistillLossSmooth(nn.Module):
             vit_loss = self.distill_loss_heatmap(outputs.encoder_out.heatmap, input)
             loss += self.vitpose_weight * vit_loss
 
-        smmooth_loss = None
+        smooth_loss = None
         if self.smooth_weight > 0.0:
             out = nn.functional.log_softmax(outputs.out, dim=-1).permute(1, 0, 2)
             smooth_loss = t_mse(out, self.smooth_tau, outputs.t_length)
@@ -120,7 +120,7 @@ class MultiTaskDistillLossSmooth(nn.Module):
             ctc_loss=ctc_loss,
             dwpose_loss=dwpose_loss,
             vit_loss=vit_loss,
-            smmooth_loss=smmooth_loss,
+            smooth_loss=smooth_loss,
         )
 
     def distill_loss_heatmap(self, heatmap: Tensor, input: Tensor):

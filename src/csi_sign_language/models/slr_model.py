@@ -21,21 +21,6 @@ import pickle
 
 from ..data_utils.interface_post_process import IPostProcess
 
-# TestResult = namedtuple(
-#     "TestResult",
-#     [
-#         "id",
-#         "hyp",
-#         "gt",
-#         "out",
-#         "out_len",
-#         "beam_result",
-#         "beam_score",
-#         "timesteps",
-#         "out_seq_len",
-#     ],
-# )
-
 
 class SLRModel(L.LightningModule):
     def __init__(
@@ -138,7 +123,7 @@ class SLRModel(L.LightningModule):
                             on_epoch=True,
                             on_step=True,
                             prog_bar=True,
-                            sync_dist=True,
+                            sync_dist=False,
                             batch_size=B,
                         )
             else:
@@ -196,7 +181,7 @@ class SLRModel(L.LightningModule):
                             f"val_loss_{key}",
                             value,
                             on_epoch=True,
-                            on_step=True,
+                            on_step=False,
                             prog_bar=True,
                             sync_dist=True,
                             batch_size=B,
@@ -207,7 +192,7 @@ class SLRModel(L.LightningModule):
                     "val_loss",
                     loss,
                     on_epoch=True,
-                    on_step=True,
+                    on_step=False,
                     prog_bar=True,
                     sync_dist=True,
                     batch_size=B,
