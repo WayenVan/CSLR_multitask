@@ -10,12 +10,12 @@ if __name__ == "__main__":
 
     sys.path.append("./src")
     from csi_sign_language.modules.resnet_distill.simcc import SimCCHead
-    from csi_sign_language.modules.multitask_encoder.multitask_encoder import (
+    from csi_sign_language.modules.multitask_encoder.base import (
         VisualBackbone,
     )
 else:
     from .simcc import SimCCHead
-    from .multitask_encoder import VisualBackbone
+    from .base import VisualBackbone
 
 
 class MultiTaskEncoderCsplit(nn.Module):

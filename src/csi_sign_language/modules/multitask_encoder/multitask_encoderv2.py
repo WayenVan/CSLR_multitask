@@ -1,9 +1,16 @@
+"""
+A multi-task encoder with more leight weigth SimCC and Heatmap headers so the visual backbone need to be more responsive
+for the output
+"""
+
 import torch
 import torch.nn as nn
 from collections import namedtuple
 from mmpose.models.heads import HeatmapHead
 from einops import rearrange
 from einops.layers.torch import Reduce
+from abc import ABC, abstractmethod
+from typing import List, Tuple
 
 
 if __name__ == "__main__":
@@ -17,7 +24,7 @@ else:
     from .base import VisualBackbone
 
 
-class MultiTaskEncoder(nn.Module):
+class MultiTaskEncoderV2(nn.Module):
     """
     support differnet visual backbone for multi task processing
 
@@ -65,6 +72,8 @@ class MultiTaskEncoder(nn.Module):
                 in_featuremap_size=(self.feats_map_size[1], self.feats_map_size[0]),
                 simcc_x_samples=simcc_x_samples,
                 simcc_y_samples=simcc_y_samples,
+                deconv_out_channels=None,
+                final_layer=dict(kernel_size=1),
             )
 
         if enable_heatmap:
@@ -127,12 +136,13 @@ if __name__ == "__main__":
     from csi_sign_language.modules.multitask_encoder.visual_backbones.resnet import (
         ResNetBackbone,
     )
+    import torchviz
 
     backbone = ResNetBackbone(
         cfg="/root/resources/resnet/resnet18.py",
         ckpt="/root/resources/resnet/resnet18_8xb32_in1k_20210831-fbbb1da6.pth",
     )
-    model = MultiTaskEncoder(
+    model = MultiTaskEncoderV2(
         backbone=backbone,
         n_keypoints_simcc=144,
         n_keypoints_heatmap=17,
@@ -153,3 +163,7 @@ if __name__ == "__main__":
             print("none")
             continue
         print(k, v.shape)
+
+    torchviz.make_dot(output.simcc_out_x).render(
+        "outputs/multi_task_encoder", format="png"
+    )

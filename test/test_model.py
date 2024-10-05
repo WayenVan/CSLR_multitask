@@ -38,10 +38,12 @@ class DebugCallback(Callback):
         return
 
 
-def test_model():
-    config_path = Path(os.getcwd()) / "configs"
-    hydra.initialize_config_dir(str(config_path.absolute()))
-    cfg = hydra.compose("run/train/resnet_transform_with_smooth.yaml")
+@hydra.main(
+    version_base="1.3.2",
+    config_path="../configs",
+    config_name="run/train/resnet_efficient_simcc_only.yaml",
+)
+def test_model(cfg):
     # cfg = hydra.compose('run/train/dual')
     index = 0
     print(socket.gethostname())
@@ -54,12 +56,12 @@ def test_model():
     lightning_module.set_post_process(datamodule.get_post_process())
 
     t = Trainer(
-        accelerator="gpu",
+        accelerator="cpu",
         strategy="ddp_find_unused_parameters_true",
         # strategy='deepspeed_stage_2',
         # max_steps=100,
         # devices=getattr(cfg, "devices", [1]),
-        devices=[1],
+        # devices=[1],
         logger=False,
         enable_checkpointing=False,
         precision=16,

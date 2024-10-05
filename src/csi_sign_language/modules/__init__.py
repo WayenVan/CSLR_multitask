@@ -8,6 +8,7 @@ from .efficient_decoder.efficient_attention import (
 from .efficient_decoder_casual.efficient_decoder_casual import EfficientDecoderCasual
 
 from .multitask_encoder.multitask_encoder import MultiTaskEncoder
+from .multitask_encoder.multitask_encoderv2 import MultiTaskEncoderV2
 from .multitask_encoder.visual_backbones.resnet import ResNetBackbone
 
 # from .multitask_encoder.visual_backbones.timm_resnet import TimmResNetBackbone
