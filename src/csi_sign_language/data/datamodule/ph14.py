@@ -3,7 +3,8 @@ from torch.utils.data import DataLoader
 from lightning import LightningDataModule
 from ..dataset.phoenix14 import MyPhoenix14Dataset
 from ...data_utils.ph14.post_process import PostProcess
-from ...data_utils.interface_post_process import IPostProcess
+from ...data_utils.ph14.evaluator_sclite import Pheonix14Evaluator
+from ...data_utils.base import IPostProcess, IEvaluator
 from ..dataset.phoenix14 import CollateFn
 
 
@@ -55,6 +56,13 @@ class Ph14DataModule(LightningDataModule):
 
     def get_vocab(self):
         return self.train_set.get_vocab()
+
+    def create_evaluator(self, origin_data_root: str, mode: str):
+        return Pheonix14Evaluator(
+            data_root=origin_data_root,
+            subset="multisigner",
+            mode=mode,
+        )
 
     @staticmethod
     def get_post_process():

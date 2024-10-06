@@ -79,7 +79,7 @@ class BucketRandomAttention(nn.Module):
         @param temporal_dim: int, the max length of the temporal dimension
         """
         B = t_length.size(dim=0)
-        mask = torch.range(0, temporal_dim - 1, device=t_length.device)
+        mask = torch.arange(temporal_dim, device=t_length.device)
         mask = rearrange(mask, "t -> 1 t")
         t_length = rearrange(t_length, "b -> b 1")
 

@@ -6,9 +6,9 @@ if __name__ == "__main__":
     import sys
 
     sys.path.append("src")
-    from csi_sign_language.data_utils.interface_post_process import IPostProcess
+    from csi_sign_language.data_utils.base import IPostProcess
 else:
-    from ..interface_post_process import IPostProcess
+    from ..base import IPostProcess
 
 
 class PostProcess(IPostProcess):

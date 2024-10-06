@@ -54,21 +54,25 @@ def test_model(cfg):
     lightning_module = SLRModel(cfg, vocab)
     # lightning_module = SLRModel.load_from_checkpoint('outputs/train/2024-08-05_20-40-03/epoch=4_wer-val=89.29_lr=1.00e-04_loss=7.62.ckpt', cfg=cfg)
     lightning_module.set_post_process(datamodule.get_post_process())
+    lightning_module.set_work_dir("outputs/test")
+    lightning_module.set_evaluator(
+        datamodule.create_evaluator(cfg.resources.ph14.root, mode="dev")
+    )
 
     t = Trainer(
-        accelerator="cpu",
+        accelerator="gpu",
         strategy="ddp_find_unused_parameters_true",
         # strategy='deepspeed_stage_2',
         # max_steps=100,
         # devices=getattr(cfg, "devices", [1]),
-        # devices=[1],
+        devices=[0],
         logger=False,
         enable_checkpointing=False,
         precision=16,
         callbacks=[callbacks.RichProgressBar(), DebugCallback()],
     )
 
-    t.fit(lightning_module, datamodule)
+    t.validate(lightning_module, datamodule)
     # t.validate(lightning_module, datamodule.val_dataloader())
     return
 

@@ -2,7 +2,7 @@ import sys
 from logging import Logger
 import gc
 import torch
-import torch
+from pathlib import Path
 
 
 def clean():
@@ -17,7 +17,7 @@ def info(l: Logger, m):
 
 def warn(l: Logger, m):
     if l is not None:
-        l.warn(m)
+        l.warning(m)
 
 
 def add_attributes(obj, locals: dict):
@@ -56,3 +56,20 @@ def is_debugging():
 
     return False
 
+
+def clean_folder(folder_path):
+    folder = Path(folder_path)
+
+    for item in folder.iterdir():
+        try:
+            if item.is_file() or item.is_symlink():
+                item.unlink()  # Remove file or symbolic link
+            elif item.is_dir():
+                for sub_item in item.rglob("*"):  # Recursively remove contents
+                    if sub_item.is_file() or sub_item.is_symlink():
+                        sub_item.unlink()
+                    elif sub_item.is_dir():
+                        sub_item.rmdir()
+                item.rmdir()  # Finally remove the empty directory
+        except Exception as e:
+            print(f"Failed to delete {item}. Reason: {e}")

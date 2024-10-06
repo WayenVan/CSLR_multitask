@@ -3,35 +3,28 @@
 from lightning import LightningModule
 import torch
 from torch.optim import Optimizer
-from torchtext.vocab import Vocab
 from omegaconf import OmegaConf, DictConfig
 import sys
 
 sys.path.append("src")
 from hydra.utils import instantiate
-from torch.utils.data.dataloader import DataLoader
 from csi_sign_language.utils.git import (
     save_git_diff_to_file,
-    get_current_git_hash,
     save_git_hash,
 )
 from csi_sign_language.models.slr_model import SLRModel
-from csi_sign_language.utils.misc import is_debugging
 import hydra
 import os
-import numpy as np
 
 from datetime import datetime
 from lightning.pytorch import seed_everything
 from lightning.pytorch import loggers as pl_loggers
 from lightning.pytorch import callbacks
 from lightning.pytorch import trainer
-from lightning.pytorch import strategies
 from lightning.pytorch.trainer import Trainer
 from lightning.pytorch.callbacks import Callback
 from lightning.pytorch import plugins
 from torch.cuda.amp.grad_scaler import GradScaler
-from torch.utils.tensorboard.writer import SummaryWriter
 
 
 @hydra.main(

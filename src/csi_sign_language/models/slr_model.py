@@ -7,7 +7,7 @@ import sys
 from typing import List, Any, Union, NamedTuple
 from einops import rearrange
 from ..utils.decode import CTCBeamDecoder
-from ..utils.misc import is_namedtuple_instance
+from ..utils.misc import is_namedtuple_instance, clean_folder
 from hydra.utils import instantiate
 
 import lightning as L
@@ -18,8 +18,10 @@ from csi_sign_language.data_utils.ph14.post_process import apply_hypothesis
 from csi_sign_language.modules.losses.loss import VACLoss as _VACLoss
 from csi_sign_language.data_utils.ph14.wer_evaluation_python import wer_calculation
 import pickle
+import glob
+import numpy as np
 
-from ..data_utils.interface_post_process import IPostProcess
+from ..data_utils.base import IEvaluator
 
 
 class SLRModel(L.LightningModule):
@@ -46,9 +48,6 @@ class SLRModel(L.LightningModule):
 
         self.train_ids_epoch = []
         self.val_ids_epoch = []
-        # self.backbone.register_backward_hook(se()lf.check_gradients)
-        #
-        self.post_process: Union[None, IPostProcess] = None
 
     @torch.no_grad()
     def _ctc_decode(self, out, length):
@@ -84,6 +83,9 @@ class SLRModel(L.LightningModule):
 
     def set_post_process(self, fn):
         self.post_process = fn
+
+    def set_work_dir(self, work_dir: str):
+        self.work_dir = Path(work_dir)
 
     def forward(self, x, t_length) -> Any:
         outputs = self.backbone(x, t_length)
@@ -161,7 +163,26 @@ class SLRModel(L.LightningModule):
         self.train_ids_epoch += id
         return loss
 
+    def set_evaluator(self, evaluator: IEvaluator):
+        self.evaluator = evaluator
+
     def on_validation_start(self) -> None:
+        # check if evaluator has been  set
+        if not hasattr(self, "evaluator"):
+            raise RuntimeError(
+                "missing evaluator, please use self.set_evaluator to set it"
+            )
+        if not hasattr(self, "work_dir"):
+            raise RuntimeError(
+                "missing working dir, please use self.set_work_dir to set it"
+            )
+        # setup path variable
+        self.validation_data_cache = self.work_dir / "validation_cache"
+        self.validation_data_cache.mkdir(parents=True, exist_ok=True)
+
+    def on_validation_epoch_start(self) -> None:
+        # clean previous result validatation_work_dir
+        clean_folder(str(self.validation_data_cache))
         self.val_ids_epoch.clear()
 
     def validation_step(self, batch, batch_idx):
@@ -199,32 +220,83 @@ class SLRModel(L.LightningModule):
                 )
 
         hyp = self._ctc_decode(outputs.out, outputs.t_length)[0]
-        if self.post_process:
-            hyp, gt = self.post_process.process(hyp, gloss_gt)
-        else:
-            raise NotImplementedError()
+        # if self.post_process:
+        #     hyp, gt = self.post_process.process(hyp, gloss_gt)
+        # else:
+        #     raise NotImplementedError()
 
+        self.val_ids_epoch += id
+        # return all possible infomation about the result
+        for b in range(len(id)):
+            result = dict(
+                id=id[b],
+                hyp=hyp[b],
+                gt=gloss_gt[b],
+                out=outputs.out.cpu().numpy()[:, b],
+                t_length=outputs.t_length.cpu().numpy()[b],
+            )
+            # print(outputs.out.shape[0])
+            with (self.validation_data_cache / f"{result['id']}.pkl").open("wb") as f:
+                pickle.dump(result, f)
+        if self.trainer.is_last_batch:
+            self.log("test", 1)
+            self.print("last batch")
+
+    def on_validation_epoch_end(self) -> None:
+        if self.trainer.global_rank != 0:
+            return
+        validation_results = glob.glob(str(self.validation_data_cache / "*.pkl"))
+        gts = []
+        hyps = []
+        ids = []
+        wers = np.array([])
+        for result in validation_results:
+            with open(result, "rb") as f:
+                data = pickle.load(f)
+                id = data["id"]
+                hyp = data["hyp"]
+                gt = data["gt"]
+
+            wer = wer_calculation([gt], [hyp])
+            gts.append(gt)
+            hyps.append(hyp)
+            ids.append(id)
+            wers = np.append(wers, wer)
         self.log(
             "val_wer",
-            wer_calculation(gt, hyp),
+            wers.mean(),
             on_epoch=True,
             on_step=False,
-            sync_dist=True,
-            batch_size=B,
+            rank_zero_only=True,
         )
-        self.val_ids_epoch += id
+        # native wer
+        wer_native = self.evaluator.evaluate(
+            ids, hyps, gts, work_dir=self.work_dir / "validate_work_dir"
+        )
+        self.log(
+            "val_wer_native",
+            wer_native,
+            on_epoch=True,
+            on_step=False,
+            rank_zero_only=True,
+        )
 
     def set_test_working_dir(self, dir: str):
         self.test_working_dir = Path(dir)
+
+    def on_test_start(self) -> None:
+        # check value
+        if not hasattr(self, "test_working_dir"):
+            raise RuntimeError(
+                "working dir is not set, plese use self.set_test_working_dir to set it"
+            )
+        clean_folder(str(self.validation_data_cache))
+        # make sure the test cache is emptye
 
     def test_step(self, batch, batch_idx):
         id, video, gloss, video_length, gloss_length, gloss_gt = self._extract_batch(
             batch
         )
-        if not hasattr(self, "test_working_dir"):
-            raise RuntimeError(
-                "working dir is not set, plese use self.set_test_working_dir to set it"
-            )
 
         with torch.inference_mode():
             outputs = self.backbone(video, video_length)
