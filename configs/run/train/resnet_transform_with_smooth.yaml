@@ -11,6 +11,7 @@ defaults:
   - /loss: multitask_distill_with_smooth
   - /resources: mec
 
+cache_dir: outputs/train/cache0
 seed: 3407
 epoch: 200
 tags:

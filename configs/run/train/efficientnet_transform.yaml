@@ -11,6 +11,7 @@ defaults:
   - /loss: multitask_distill
   - /resources: mec
 
+cache_dir: outputs/train/cache2
 seed: 3407
 epoch: 200
 tags:
