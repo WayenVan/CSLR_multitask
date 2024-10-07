@@ -118,7 +118,7 @@ class MyPhoenix14DatasetV2(Dataset):
         data_root: str,
         feature_root: str,
         mode: Literal["test", "dev", "train"] = "train",
-        thread_pool: ThreadPoolExecutor | None = None,
+        thread_pool: Union[ThreadPoolExecutor, None] = None,
         transform=None,
         excluded_ids=[],
     ) -> None:
