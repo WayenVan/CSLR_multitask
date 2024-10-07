@@ -51,7 +51,13 @@ def main(cfg: DictConfig):
     else:
         lightning_module = SLRModel(cfg, vocab)
 
+    # setup the module
     lightning_module.set_post_process(datamodule.get_post_process())
+    lightning_module.set_work_dir(save_dir)
+    lightning_module.set_evaluator(
+        # NOTE: should be validation so it is dev!!!
+        datamodule.create_evaluator(cfg.resources.ph14.root, mode="dev")
+    )
 
     # set logger and others
     logger = build_logger()
@@ -124,6 +130,7 @@ def build_logger():
 
 
 class DebugCallback(Callback):
+    # NOTE: this is a debug callback so no need to be efficient
     def __init__(self, logger, logdir) -> None:
         super().__init__()
         self.logger = logger
