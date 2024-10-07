@@ -84,9 +84,6 @@ class SLRModel(L.LightningModule):
     def set_post_process(self, fn):
         self.post_process = fn
 
-    def set_work_dir(self, work_dir: str):
-        self.work_dir = Path(work_dir)
-
     def forward(self, x, t_length) -> Any:
         outputs = self.backbone(x, t_length)
         hyp = self._ctc_decode(outputs.out, outputs.t_length)[0]
@@ -166,23 +163,35 @@ class SLRModel(L.LightningModule):
     def set_evaluator(self, evaluator: IEvaluator):
         self.evaluator = evaluator
 
+    def set_validation_cache_dir(self, dir: str):
+        # NOTE: the cache_dir for all rank should be the same, so all validate data will be accessed
+        self.validation_data_cache = Path(dir)
+        self.validation_data_cache.mkdir(parents=True, exist_ok=True)
+
+    def set_validation_working_dir(self, dir: str):
+        # NOTE: each rank should have is own working directory
+        self.validation_working_dir = Path(dir)
+        self.validation_working_dir.mkdir(parents=True, exist_ok=True)
+
     def on_validation_start(self) -> None:
-        # check if evaluator has been  set
+        # check if all varialbe for validation has been set
         if not hasattr(self, "evaluator"):
             raise RuntimeError(
                 "missing evaluator, please use self.set_evaluator to set it"
             )
-        if not hasattr(self, "work_dir"):
+        if not hasattr(self, "validation_working_dir"):
             raise RuntimeError(
-                "missing working dir, please use self.set_work_dir to set it"
+                "missing validation working dir, please use self.set_validation_working_dir to set it"
             )
-        # setup path variable
-        self.validation_data_cache = self.work_dir / "validation_cache"
-        self.validation_data_cache.mkdir(parents=True, exist_ok=True)
+        if not hasattr(self, "validation_data_cache"):
+            raise RuntimeError(
+                "missing validation data cache dir, please use self.set_validation_cache_dir to set it"
+            )
 
     def on_validation_epoch_start(self) -> None:
         # clean previous result validatation_work_dir
-        clean_folder(str(self.validation_data_cache))
+        if self.trainer.global_rank == 0:
+            clean_folder(str(self.validation_data_cache))
         self.val_ids_epoch.clear()
 
     def validation_step(self, batch, batch_idx):
@@ -238,13 +247,9 @@ class SLRModel(L.LightningModule):
             # print(outputs.out.shape[0])
             with (self.validation_data_cache / f"{result['id']}.pkl").open("wb") as f:
                 pickle.dump(result, f)
-        if self.trainer.is_last_batch:
-            self.log("test", 1)
-            self.print("last batch")
 
     def on_validation_epoch_end(self) -> None:
-        if self.trainer.global_rank != 0:
-            return
+        # assumble the result from all ranks
         validation_results = glob.glob(str(self.validation_data_cache / "*.pkl"))
         gts = []
         hyps = []
@@ -262,23 +267,24 @@ class SLRModel(L.LightningModule):
             hyps.append(hyp)
             ids.append(id)
             wers = np.append(wers, wer)
+
         self.log(
             "val_wer",
             wers.mean(),
             on_epoch=True,
             on_step=False,
-            rank_zero_only=True,
+            sync_dist=True,
         )
         # native wer
         wer_native = self.evaluator.evaluate(
-            ids, hyps, gts, work_dir=self.work_dir / "validate_work_dir"
+            ids, hyps, gts, work_dir=str(self.validation_working_dir)
         )
         self.log(
             "val_wer_native",
             wer_native,
             on_epoch=True,
             on_step=False,
-            rank_zero_only=True,
+            sync_dist=True,
         )
 
     def set_test_working_dir(self, dir: str):
@@ -290,7 +296,7 @@ class SLRModel(L.LightningModule):
             raise RuntimeError(
                 "working dir is not set, plese use self.set_test_working_dir to set it"
             )
-        clean_folder(str(self.validation_data_cache))
+        clean_folder(str(self.test_working_dir))
         # make sure the test cache is emptye
 
     def test_step(self, batch, batch_idx):

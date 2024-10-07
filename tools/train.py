@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 from lightning import LightningModule
+from pathlib import Path
 import torch
 from torch.optim import Optimizer
 from omegaconf import OmegaConf, DictConfig
@@ -41,6 +42,7 @@ def main(cfg: DictConfig):
     save_dir = os.path.join(
         "outputs", file_name[:-3], current_time.strftime("%Y-%m-%d_%H-%M-%S")
     )
+    cache_dir = Path(cfg.cache_dir)
 
     ## build module
     datamodule = instantiate(cfg.datamodule)
@@ -50,14 +52,6 @@ def main(cfg: DictConfig):
         lightning_module = SLRModel.load_from_checkpoint(cfg.checkpoint, cfg=cfg)
     else:
         lightning_module = SLRModel(cfg, vocab)
-
-    # setup the module
-    lightning_module.set_post_process(datamodule.get_post_process())
-    lightning_module.set_work_dir(save_dir)
-    lightning_module.set_evaluator(
-        # NOTE: should be validation so it is dev!!!
-        datamodule.create_evaluator(cfg.resources.ph14.root, mode="dev")
-    )
 
     # set logger and others
     logger = build_logger()
@@ -97,6 +91,10 @@ def main(cfg: DictConfig):
     )
 
     if t.local_rank == 0:
+        if cache_dir.exists():
+            raise ValueError(
+                f"Cache dir {cache_dir} already exists! remove it before training"
+            )
         os.makedirs(save_dir, exist_ok=True)
         # save config
         with open(os.path.join(save_dir, "config.yaml"), "w") as f:
@@ -111,6 +109,16 @@ def main(cfg: DictConfig):
         save_git_hash(os.path.join(save_dir, "git_version.bash"))
         save_git_diff_to_file(os.path.join(save_dir, "changes.patch"))
 
+    # setup the module
+    lightning_module.set_post_process(datamodule.get_post_process())
+    lightning_module.set_evaluator(
+        # NOTE: should be validation so it is dev!!!
+        datamodule.create_evaluator(cfg.resources.ph14.root, mode="dev")
+    )
+    lightning_module.set_validation_cache_dir(str(cache_dir / "validate_data_cache"))
+    lightning_module.set_validation_working_dir(
+        str(cache_dir / f"validate_work_dir_{t.global_rank}")
+    )
     t.fit(
         lightning_module,
         datamodule=datamodule,
