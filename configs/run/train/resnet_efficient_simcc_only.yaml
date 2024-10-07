@@ -35,7 +35,7 @@ devices: [0]
 
 datamodule:
   batch_size: 2
-  num_workers: 6
+  num_workers: 10
   train_shuffle: False
 
 optimizer:

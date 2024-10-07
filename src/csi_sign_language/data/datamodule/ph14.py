@@ -1,7 +1,7 @@
 from lightning.pytorch.utilities.types import TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
 from lightning import LightningDataModule
-from ..dataset.phoenix14 import MyPhoenix14Dataset
+from ..dataset.phoenix14 import MyPhoenix14Dataset, MyPhoenix14DatasetV2
 from ...data_utils.ph14.post_process import PostProcess
 from ...data_utils.ph14.evaluator_sclite import Pheonix14Evaluator
 from ...data_utils.base import IPostProcess, IEvaluator
@@ -12,9 +12,11 @@ class Ph14DataModule(LightningDataModule):
     def __init__(
         self,
         data_dir,
+        feature_dir,
         batch_size,
         num_workers,
         train_shuffle,
+        thread_pool=None,
         train_transform=None,
         val_transform=None,
         test_transform=None,
@@ -22,6 +24,7 @@ class Ph14DataModule(LightningDataModule):
     ) -> None:
         super().__init__()
         self.data_root = data_dir
+        self.feature_dir = feature_dir
         self.batch_size = batch_size
         self.num_workers = num_workers
 
@@ -31,24 +34,27 @@ class Ph14DataModule(LightningDataModule):
 
         self.train_shuffle = train_shuffle
 
-        self.train_set = MyPhoenix14Dataset(
+        self.train_set = MyPhoenix14DatasetV2(
             self.data_root,
-            "multisigner",
+            self.feature_dir,
             "train",
+            thread_pool=thread_pool,
             transform=self.train_transform,
             excluded_ids=excluded_ids,
         )
-        self.val_set = MyPhoenix14Dataset(
+        self.val_set = MyPhoenix14DatasetV2(
             self.data_root,
-            "multisigner",
+            self.feature_dir,
             "dev",
+            thread_pool=thread_pool,
             transform=self.v_transform,
             excluded_ids=excluded_ids,
         )
-        self.test_set = MyPhoenix14Dataset(
+        self.test_set = MyPhoenix14DatasetV2(
             self.data_root,
-            "multisigner",
+            self.feature_dir,
             "test",
+            thread_pool=thread_pool,
             transform=self.test_transform,
             excluded_ids=excluded_ids,
         )

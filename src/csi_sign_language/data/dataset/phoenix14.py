@@ -4,167 +4,26 @@ import numpy as np
 import glob
 import cv2 as cv2
 import pandas as pd
+from collections import OrderedDict
 
 import torch
 from torch.utils.data import Dataset
 from torchtext.vocab import vocab, build_vocab_from_iterator, Vocab
 import torch.nn.functional as F
 from einops import rearrange
+from pathlib import Path
 
 from csi_sign_language.csi_typing import PaddingMode
 from ...csi_typing import *
 from ...utils.data import VideoGenerator, padding, load_vocab
-from typing import *
+from typing import Literal, List, Union
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 
 from ...utils.lmdb_tool import retrieve_data
 import json
 import yaml
 import lmdb
-
-
-class BasePhoenix14Dataset(Dataset, ABC):
-    data_root: str
-
-    def __init__(
-        self,
-        data_root,
-        gloss_vocab_dir,
-        type="train",
-        multisigner=True,
-        length_time=None,
-        length_glosses=None,
-        padding_mode: PaddingMode = "front",
-    ):
-        if multisigner:
-            annotation_dir = os.path.join(
-                data_root, "phoenix-2014-multisigner/annotations/manual"
-            )
-            annotation_file = type + ".corpus.csv"
-            feature_dir = os.path.join(
-                "phoenix-2014-multisigner/features/fullFrame-210x260px", type
-            )
-        else:
-            annotation_dir = os.path.join(
-                data_root, "phoenix-2014-signerindependent-SI5/annotations/manual"
-            )
-            annotation_file = type + ".SI5.corpus.csv"
-            feature_dir = os.path.join(
-                "phoenix-2014-signerindependent-SI5/features/fullFrame-210x260px", type
-            )
-
-        self._annotations = pd.read_csv(
-            os.path.join(annotation_dir, annotation_file), delimiter="|"
-        )
-        self._feature_dir = feature_dir
-        self._data_root = data_root
-
-        self._length_time = self.max_length_time if length_time == None else length_time
-        self._length_gloss = (
-            self.max_length_gloss if length_glosses == None else length_glosses
-        )
-        self._padding_mode = padding_mode
-
-        self.gloss_vocab = load_vocab(gloss_vocab_dir)
-
-    def __len__(self):
-        return len(self._annotations)
-
-    @abstractmethod
-    def __getitem__(self, idx):
-        return
-
-    @property
-    def max_length_time(self):
-        max = 0
-        for folder in self._annotations["folder"]:
-            file_list = glob.glob(
-                os.path.join(self._data_root, self._feature_dir, folder)
-            )
-            if len(file_list) >= max:
-                max = len(file_list)
-        return max
-
-    @property
-    def max_length_gloss(self):
-        max = 0
-        for glosses in self._annotations["annotation"]:
-            l = len(glosses.split())
-            if l > max:
-                max = l
-        return max
-
-
-class Phoenix14Dataset(BasePhoenix14Dataset):
-    """
-    Dataset for general RGB image with gloss label, the output is (frames, gloss_labels, frames_padding_mask, gloss_padding_mask)
-    """
-
-    def __init__(
-        self,
-        data_root,
-        gloss_vocab_dir,
-        type="train",
-        multisigner=True,
-        length_time=None,
-        length_glosses=None,
-        img_transform=None,
-        transform=None,
-    ):
-        super().__init__(
-            data_root,
-            gloss_vocab_dir,
-            type,
-            multisigner,
-            length_time,
-            length_glosses,
-            "back",
-        )
-        self._img_transform = img_transform
-        self.transform = transform
-
-    def __getitem__(self, idx) -> Tuple[np.ndarray, np.ndarray]:
-        anno = self._annotations["annotation"].iloc[idx]
-        anno: List[str] = anno.split()
-        anno: List[int] = self.gloss_vocab(anno)
-        anno: np.ndarray = np.asarray(anno)
-
-        folder: str = self._annotations["folder"].iloc[idx]
-        frame_files: List[str] = self._get_frame_file_list_from_annotation(folder)
-
-        video_gen: VideoGenerator = VideoGenerator(frame_files)
-        frames: List[np.ndarray] = [
-            frame if self._img_transform == None else self._img_transform(frame)
-            for frame in video_gen
-        ]
-        # [t, h, w, c]
-        frames: np.ndarray = np.stack(frames)
-
-        # padding
-        frames, frames_mask = padding(frames, 0, self._length_time, self._padding_mode)
-        anno, anno_mask = padding(anno, 0, self._length_gloss, self._padding_mode)
-
-        ret = dict(
-            video=frames.astype("uint8"),  # [t, h, w, c]
-            annotation=anno,  # [s]
-            video_mask=frames_mask,  # [t]
-            annotation_mask=anno_mask,  # [s]
-        )
-
-        if self.transform:
-            ret = self.transform(ret)
-
-        return ret
-
-    def _get_frame_file_list_from_annotation(self, folder: str) -> List[str]:
-        """return frame file list with the frame order"""
-        file_list: List[str] = glob.glob(
-            os.path.join(self._data_root, self._feature_dir, folder)
-        )
-        file_list = sorted(
-            file_list, key=lambda x: int(x.split("_")[-1].split("-")[0][2:])
-        )
-        return file_list
 
 
 class MyPhoenix14Dataset(Dataset):
@@ -236,6 +95,111 @@ class MyPhoenix14Dataset(Dataset):
     def _init_db(self):
         self.lmdb_env = lmdb.open(
             os.path.join(self.data_root, self.subset, self.mode, "feature_database"),
+            readonly=True,
+            lock=False,
+            create=False,
+        )
+
+    def get_vocab(self):
+        return self.vocab
+
+    @staticmethod
+    def create_vocab_from_list(list: List[str]):
+        return vocab(OrderedDict([(item, 1) for item in list]))
+
+
+class MyPhoenix14DatasetV2(Dataset):
+    """
+    support mult
+    """
+
+    def __init__(
+        self,
+        data_root: str,
+        feature_root: str,
+        mode: Literal["test", "dev", "train"] = "train",
+        thread_pool: ThreadPoolExecutor | None = None,
+        transform=None,
+        excluded_ids=[],
+    ) -> None:
+        self.data_root = Path(data_root)
+        self.mode = mode
+        self.feature_root = Path(feature_root)
+        self.lmdb_root = self.feature_root / self.mode
+        self.annotation_file = (
+            self.data_root
+            / f"phoenix-2014-multisigner/annotations/manual/{self.mode}.corpus.csv"
+        )
+        self.annotation = pd.read_csv(self.annotation_file, sep="|")
+        # adjust data
+        if len(excluded_ids) > 0:
+            self.annotation = self.annotation[~self.annotation.id.isin(excluded_ids)]
+
+        # load info file
+        with open(os.path.join(self.feature_root, "info.json"), "r") as f:
+            self.info = json.load(f)
+        # generate vocab
+        self.vocab = self.create_vocab_from_list(self.info["vocab"])
+        self.transform = transform
+        self.thread_pool = thread_pool
+
+    def get_frame_ids(self, id):
+        feature_root = (
+            self.data_root
+            / f"phoenix-2014-multisigner/features/fullFrame-210x260px/{self.mode}"
+        )
+        p = list(Path(feature_root).glob(f"{id}/1/*.png"))
+        frames_path = sorted(
+            p,
+            key=lambda x: int(x.name[-12:-6]),
+        )
+        frame_id = [id + "/" + frame.name for frame in frames_path]
+        return frame_id
+
+    def retreive_frames(self, frame_ids):
+        # NOTE: ids is sorted
+        if hasattr(self, "lmdb_env") is False:
+            self._init_db()
+
+        if self.thread_pool is not None:
+            # NOTE: order need to be the same
+            futures = [
+                self.thread_pool.submit(retrieve_data, self.lmdb_env, id)
+                for id in frame_ids
+            ]
+            results = [future.result() for future in futures]
+            return results
+
+        results = [retrieve_data(self.lmdb_env, id) for id in frame_ids]
+        return results
+
+    def __getitem__(self, index) -> Any:
+        item = self.annotation.iloc[index]
+        id = item["id"]
+        glosses = item["annotation"]
+        glosses = glosses.split()
+        glosses_index = np.array(self.vocab(glosses), dtype=np.int64)
+        video = self.retreive_frames(self.get_frame_ids(id))
+        video = np.stack(video, dtype=np.uint8)
+
+        ret = dict(
+            id=id,
+            video=video,  # [t c h w], uint8, 0-255
+            gloss=glosses_index,
+            gloss_label=glosses,
+        )
+
+        if self.transform is not None:
+            ret = self.transform(ret)
+
+        return ret
+
+    def __len__(self):
+        return len(self.annotation)
+
+    def _init_db(self):
+        self.lmdb_env = lmdb.open(
+            str(self.lmdb_root),
             readonly=True,
             lock=False,
             create=False,

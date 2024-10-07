@@ -72,7 +72,7 @@ def test_model(cfg):
         callbacks=[callbacks.RichProgressBar(), DebugCallback()],
     )
 
-    t.validate(lightning_module, datamodule)
+    t.fit(lightning_module, datamodule)
     # t.validate(lightning_module, datamodule.val_dataloader())
     return
 
