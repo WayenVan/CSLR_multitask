@@ -281,7 +281,7 @@ class SLRModel(L.LightningModule):
         wer_python = wer_calculation(gts, hyps)
         self.log(
             "val_wer",
-            wer_python.mean(),
+            wer_python,
             on_epoch=True,
             on_step=False,
             sync_dist=True,
