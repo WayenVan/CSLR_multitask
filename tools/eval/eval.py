@@ -38,16 +38,16 @@ def main(work_dir: str, result_dir: str, data_root: str):
         ids.append(id)
         wers = np.append(wers, wer)
 
-    wer0 = wer_calculation(gts, hyps)
-    wer1 = wers.mean()
-    print(wer0, wer1)
-
+    hyps, gts = PostProcess().process(hyps, gts)
     evaluator = Pheonix14Evaluator(
         data_root=data_root, subset="multisigner", mode="dev"
     )
     errors = evaluator.evaluate(ids, hyps, gts, work_dir=work_dir)
 
+    wer = wer_calculation(gts, hyps)
+
     print(errors)
+    print(wer)
 
 
 if __name__ == "__main__":

@@ -275,9 +275,16 @@ class SLRModel(L.LightningModule):
             sync_dist=True,
         )
 
-        # calculate the wer by python, so need to apply a post process
+        # NOTE: the post_process will merge the same and do some simplification, the defualt evaluator actually didn't do the merge things
         if self.post_process:
             hyp, gt = self.post_process.process(hyp, gt)
+        else:
+            self.print(
+                "[WARNING] post process is not set, so skip the post process",
+                file=sys.stderr,
+            )
+
+        # calculate the wer by python, so need to apply a post process
         wer_python = wer_calculation(gts, hyps)
         self.log(
             "val_wer",

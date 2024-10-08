@@ -31,6 +31,7 @@ class Pheonix14Evaluator(IEvaluator):
     def evaluate(
         self, ids: List[str], hyp: List[List[str]], gt: List[List[str]], work_dir=None
     ):
+        # NOTE: actually the ground truth is not used, because we already have the .stm file
         if work_dir is None:
             raise RuntimeError(
                 "the Phoenix14Evaluator need a work_dir to store the temp files"
