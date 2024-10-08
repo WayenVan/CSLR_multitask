@@ -263,18 +263,6 @@ class SLRModel(L.LightningModule):
             hyps.append(hyp)
             ids.append(id)
 
-        # native wer
-        wer_native = self.evaluator.evaluate(
-            ids, hyps, gts, work_dir=str(self.validation_working_dir)
-        )
-        self.log(
-            "val_wer_native",
-            wer_native,
-            on_epoch=True,
-            on_step=False,
-            sync_dist=True,
-        )
-
         # NOTE: the post_process will merge the same and do some simplification, the defualt evaluator actually didn't do the merge things
         if self.post_process:
             hyp, gt = self.post_process.process(hyp, gt)
@@ -284,10 +272,22 @@ class SLRModel(L.LightningModule):
                 file=sys.stderr,
             )
 
+        # native wer
+        wer_native = self.evaluator.evaluate(
+            ids, hyps, gts, work_dir=str(self.validation_working_dir)
+        )
+        self.log(
+            "val_wer",
+            wer_native,
+            on_epoch=True,
+            on_step=False,
+            sync_dist=True,
+        )
+
         # calculate the wer by python, so need to apply a post process
         wer_python = wer_calculation(gts, hyps)
         self.log(
-            "val_wer",
+            "val_wer_python",
             wer_python,
             on_epoch=True,
             on_step=False,
