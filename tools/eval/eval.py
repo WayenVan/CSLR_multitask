@@ -7,14 +7,16 @@ from pathlib import Path
 import pickle
 from csi_sign_language.data_utils.ph14.wer_evaluation_python import wer_calculation
 from csi_sign_language.data_utils.ph14.evaluator_sclite import Pheonix14Evaluator
+from csi_sign_language.data_utils.ph14.post_process import PostProcess
 import click
 
 
 @click.option("--work_dir", default="./outputs/evaluate_working_dir")
+@click.option("--result_dir", default="outputs/train/cache0/validate_data_cache")
 @click.option("--data_root", default="dataset/phoenix2014-release")
 @click.command()
-def main(work_dir: str, data_root: str):
-    results_dir = Path(work_dir) / "test_result"
+def main(work_dir: str, result_dir: str, data_root: str):
+    results_dir = Path(result_dir)
     if not results_dir.exists():
         raise FileNotFoundError(f"Results directory {results_dir} does not exist.")
     result_files = glob.glob(str(results_dir / "*.pkl"))
@@ -36,9 +38,9 @@ def main(work_dir: str, data_root: str):
         ids.append(id)
         wers = np.append(wers, wer)
 
-    # wer0 = wer_calculation(gts, hyps)
-    # wer1 = wers.mean()
-    # print(wer0, wer1)
+    wer0 = wer_calculation(gts, hyps)
+    wer1 = wers.mean()
+    print(wer0, wer1)
 
     evaluator = Pheonix14Evaluator(
         data_root=data_root, subset="multisigner", mode="dev"

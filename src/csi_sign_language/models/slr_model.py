@@ -14,14 +14,13 @@ import lightning as L
 from omegaconf.dictconfig import DictConfig
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
-from csi_sign_language.data_utils.ph14.post_process import apply_hypothesis
-from csi_sign_language.modules.losses.loss import VACLoss as _VACLoss
 from csi_sign_language.data_utils.ph14.wer_evaluation_python import wer_calculation
+from csi_sign_language.modules.losses.loss import VACLoss as _VACLoss
 import pickle
 import glob
 import numpy as np
 
-from ..data_utils.base import IEvaluator
+from ..data_utils.base import IEvaluator, IPostProcess
 
 
 class SLRModel(L.LightningModule):
@@ -81,8 +80,8 @@ class SLRModel(L.LightningModule):
                     print(grad)
                     print("graident is inf", file=sys.stderr)
 
-    def set_post_process(self, fn):
-        self.post_process = fn
+    def set_post_process(self, process: IPostProcess):
+        self.post_process = process
 
     def forward(self, x, t_length) -> Any:
         outputs = self.backbone(x, t_length)
@@ -254,27 +253,16 @@ class SLRModel(L.LightningModule):
         gts = []
         hyps = []
         ids = []
-        wers = np.array([])
         for result in validation_results:
             with open(result, "rb") as f:
                 data = pickle.load(f)
                 id = data["id"]
                 hyp = data["hyp"]
                 gt = data["gt"]
-
-            wer = wer_calculation([gt], [hyp])
             gts.append(gt)
             hyps.append(hyp)
             ids.append(id)
-            wers = np.append(wers, wer)
 
-        self.log(
-            "val_wer",
-            wers.mean(),
-            on_epoch=True,
-            on_step=False,
-            sync_dist=True,
-        )
         # native wer
         wer_native = self.evaluator.evaluate(
             ids, hyps, gts, work_dir=str(self.validation_working_dir)
@@ -282,6 +270,18 @@ class SLRModel(L.LightningModule):
         self.log(
             "val_wer_native",
             wer_native,
+            on_epoch=True,
+            on_step=False,
+            sync_dist=True,
+        )
+
+        # calculate the wer by python, so need to apply a post process
+        if self.post_process:
+            hyp, gt = self.post_process.process(hyp, gt)
+        wer_python = wer_calculation(gts, hyps)
+        self.log(
+            "val_wer",
+            wer_python.mean(),
             on_epoch=True,
             on_step=False,
             sync_dist=True,

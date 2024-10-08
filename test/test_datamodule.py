@@ -19,16 +19,23 @@ def test_dm():
     print(socket.gethostname())
     # cfg.datamodule.num_workers = 0
 
-    with ThreadPoolExecutor(max_workers=6) as executor:
-        datamodule = instantiate(cfg.datamodule, thread_pool=None, num_workers=12)
+    with ThreadPoolExecutor(max_workers=12) as executor:
+        datamodule = instantiate(cfg.datamodule, thread_pool=executor, num_workers=12)
         # loader = datamodule.train_dataloader()
         # for batch in tqdm(loader):
         #     pass
         dataset = datamodule.train_set
         dataset.transform = None
+        import re
+
+        for id in dataset.annotation.id:
+            # print(id)
+            if re.match("13April_2011_Wednesday_tagesschau_default", id):
+                print(id)
+                # break
+
         for i in tqdm(range(len(dataset))):
             data = dataset[i]
-            # print(data["video"].shape)
 
         # Draw all frames using matplotlib
         video_frames = data["video"]
