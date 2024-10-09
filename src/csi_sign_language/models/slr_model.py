@@ -265,7 +265,7 @@ class SLRModel(L.LightningModule):
 
         # NOTE: the post_process will merge the same and do some simplification, the defualt evaluator actually didn't do the merge things
         if self.post_process:
-            hyp, gt = self.post_process.process(hyp, gt)
+            hyps, gts = self.post_process.process(hyps, gts)
         else:
             self.print(
                 "[WARNING] post process is not set, so skip the post process",
