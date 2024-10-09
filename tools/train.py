@@ -62,7 +62,7 @@ def main(cfg: DictConfig):
         save_dir,
         save_last=True,
         filename="epoch={epoch}_wer-val={val_wer:.2f}_lr={lr-Adam:.2e}_loss={train_loss:.2f}",
-        monitor="val_wer_native",
+        monitor="val_wer",
         mode="min",
         save_top_k=1,
         auto_insert_metric_name=False,
