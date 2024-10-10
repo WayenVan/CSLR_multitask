@@ -260,19 +260,21 @@ class SLRModel(L.LightningModule):
                 id = data["id"]
                 hyp = data["hyp"]
                 gt = data["gt"]
+
+            # NOTE: the post_process will merge the same and do some simplification, the defualt evaluator actually didn't do the merge things
+            if self.post_process:
+                post_processed = self.post_process.process([hyp], [gt])
+                hyp = post_processed[0][0]
+                gt = post_processed[1][0]
+            else:
+                self.print(
+                    "[WARNING] post process is not set, so skip the post process",
+                    file=sys.stderr,
+                )
             gts.append(gt)
             hyps.append(hyp)
             ids.append(id)
             wers = np.append(wers, wer_calculation([gt], [hyp]))
-
-        # NOTE: the post_process will merge the same and do some simplification, the defualt evaluator actually didn't do the merge things
-        if self.post_process:
-            hyps, gts = self.post_process.process(hyps, gts)
-        else:
-            self.print(
-                "[WARNING] post process is not set, so skip the post process",
-                file=sys.stderr,
-            )
 
         # native wer
         wer_native = self.evaluator.evaluate(
