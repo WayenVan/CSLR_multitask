@@ -38,7 +38,7 @@ def main(config, checkpoint, ph14_root, ph14_lmdb_root, working_dir, mode):
     dm = Ph14DataModule(
         ph14_root,
         ph14_lmdb_root,
-        batch_size=2,
+        batch_size=1,
         num_workers=6,
         train_shuffle=True,
         val_transform=instantiate(cfg.transforms.test),
@@ -65,7 +65,23 @@ def main(config, checkpoint, ph14_root, ph14_lmdb_root, working_dir, mode):
     )
 
     loader = dm.test_dataloader() if mode == "test" else dm.val_dataloader()
-    t.test(model, loader)
+
+    for batch in loader:
+        id, video, gloss, video_length, gloss_length, gloss_gt = model._extract_batch(
+            batch
+        )
+        assert video.size(0) == 1, "batch size should be 1"
+        video = video.squeeze(0)
+        video_feeder = create_feeder(video)
+
+        cached_frames = []
+        frame_counter = 0
+        for frame in video_feeder:
+            cached_frames.append(frame)
+            frame_counter += 1
+            if frame_counter % 8 == 0:
+                pass
+                # TODO: implement this
 
 
 def clean_folder(folder_path):
@@ -84,6 +100,12 @@ def clean_folder(folder_path):
                 item.rmdir()  # Finally remove the empty directory
         except Exception as e:
             print(f"Failed to delete {item}. Reason: {e}")
+
+
+def create_feeder(video):
+    data = video
+    for i in range(len(data)):
+        yield data[i]
 
 
 if __name__ == "__main__":

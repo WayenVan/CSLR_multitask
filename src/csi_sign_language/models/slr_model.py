@@ -253,6 +253,7 @@ class SLRModel(L.LightningModule):
         gts = []
         hyps = []
         ids = []
+        wers = np.array([])
         for result in validation_results:
             with open(result, "rb") as f:
                 data = pickle.load(f)
@@ -262,6 +263,7 @@ class SLRModel(L.LightningModule):
             gts.append(gt)
             hyps.append(hyp)
             ids.append(id)
+            wers = np.append(wers, wer_calculation([gt], [hyp]))
 
         # NOTE: the post_process will merge the same and do some simplification, the defualt evaluator actually didn't do the merge things
         if self.post_process:
@@ -276,6 +278,8 @@ class SLRModel(L.LightningModule):
         wer_native = self.evaluator.evaluate(
             ids, hyps, gts, work_dir=str(self.validation_working_dir)
         )
+        wer_holistic = wer_calculation(gts, hyps)
+        wer_average = np.mean(wers)
         self.log(
             "val_wer_native",
             wer_native,
@@ -283,12 +287,17 @@ class SLRModel(L.LightningModule):
             on_step=False,
             sync_dist=True,
         )
-
+        self.log(
+            "val_wer_holistic",
+            wer_holistic,
+            on_epoch=True,
+            on_step=False,
+            sync_dist=True,
+        )
         # calculate the wer by python, so need to apply a post process
-        wer_python = wer_calculation(gts, hyps)
         self.log(
             "val_wer",
-            wer_python,
+            wer_average.item(),
             on_epoch=True,
             on_step=False,
             sync_dist=True,

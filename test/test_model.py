@@ -60,7 +60,7 @@ def test_model(cfg):
     )
 
     t = Trainer(
-        accelerator="gpu",
+        accelerator="cpu",
         strategy="ddp_find_unused_parameters_true",
         # strategy='deepspeed_stage_2',
         # max_steps=100,
@@ -68,7 +68,7 @@ def test_model(cfg):
         devices=[0, 1],
         logger=False,
         enable_checkpointing=False,
-        precision=16,
+        # precision=16,
         callbacks=[callbacks.RichProgressBar(), DebugCallback()],
     )
     lightning_module.set_validation_working_dir(

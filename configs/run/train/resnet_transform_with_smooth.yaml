@@ -7,7 +7,7 @@ defaults:
   - /datamodule: ph14
   - /transforms/train: 224x224
   - /transforms/test: 224x224
-  - /model: resnet_distill_efficient
+  - /model: resnet_distillv2_efficient
   - /loss: multitask_distill_with_smooth
   - /resources: mec
 
@@ -18,7 +18,6 @@ tags:
   - simcc_only
   - with_smooth
   - resnet
-  - transform
 
 #if continuos read model
 load_weights: False
@@ -30,7 +29,9 @@ devices: [0]
 model:
   encoder:
     enable_heatmap: False
-    enable_simcc: True
+    enable_simcc: False
+  decoder:
+    bucket_size: 1
 
 datamodule:
   batch_size: 2
@@ -46,7 +47,7 @@ lr_scheduler:
 
 loss:
   ctc_weight: 1.0
-  dwpose_weight: 1.0
+  dwpose_weight: 0.0
   vitpose_weight: 0.0
   dwpose_dist_temperature: 8.0
   smooth_weight: 1.0

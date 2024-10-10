@@ -11,7 +11,7 @@ encoder:
   simcc_y_samples: 512
   enable_heatmap: True
   enable_simcc: True
-  drop_prob: 0.5
+  drop_prob: 0.0
 decoder:
   _target_: ${csi}.modules.EfficientDecoder
   input_dims: 512
