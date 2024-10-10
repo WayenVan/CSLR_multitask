@@ -277,7 +277,7 @@ class SLRModel(L.LightningModule):
             ids, hyps, gts, work_dir=str(self.validation_working_dir)
         )
         self.log(
-            "val_wer",
+            "val_wer_native",
             wer_native,
             on_epoch=True,
             on_step=False,
@@ -287,7 +287,7 @@ class SLRModel(L.LightningModule):
         # calculate the wer by python, so need to apply a post process
         wer_python = wer_calculation(gts, hyps)
         self.log(
-            "val_wer_python",
+            "val_wer",
             wer_python,
             on_epoch=True,
             on_step=False,
