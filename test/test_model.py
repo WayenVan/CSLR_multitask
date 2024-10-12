@@ -41,7 +41,7 @@ class DebugCallback(Callback):
 @hydra.main(
     version_base="1.3.2",
     config_path="../configs",
-    config_name="run/train/resnet_efficient_simcc_only.yaml",
+    config_name="run/train/resnet_efficient_with_smooth.yaml",
 )
 def test_model(cfg):
     # cfg = hydra.compose('run/train/dual')
@@ -60,7 +60,7 @@ def test_model(cfg):
     )
 
     t = Trainer(
-        accelerator="cpu",
+        accelerator="gpu",
         strategy="ddp_find_unused_parameters_true",
         # strategy='deepspeed_stage_2',
         # max_steps=100,
@@ -74,7 +74,7 @@ def test_model(cfg):
     lightning_module.set_validation_working_dir(
         f"outputs/test_validate_work_dir_{t.global_rank}"
     )
-    t.validate(lightning_module, datamodule)
+    t.fit(lightning_module, datamodule)
     # t.validate(lightning_module, datamodule.val_dataloader())
     return
 

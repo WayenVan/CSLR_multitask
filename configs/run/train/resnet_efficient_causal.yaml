@@ -3,7 +3,7 @@ defaults:
   - /prefix@_global_
   - /hydra: no_output
   - /optimizer: adam
-  - /lr_scheduler: step
+  - /lr_scheduler: multistep
   - /datamodule: ph14
   - /transforms/train: 224x224
   - /transforms/test: 224x224
@@ -40,5 +40,5 @@ optimizer:
   lr: 1e-4
 
 lr_scheduler:
-  step_size: 40
+  milestones: [40, 65, 80, 85, 90]
   gamma: 0.1
