@@ -1,7 +1,10 @@
+core.*
+dataset
+resources
+preprocessed
 **/*.ipynb
 **/.mypy_cache
 /experiments_post
-/dataset
 /results
 *.pyc
 /.vscode
@@ -12,7 +15,6 @@
 
 /snap_tmp
 /snap
-/resources
 **/__pycache__
 .pytest_cache
 mmpose
@@ -20,7 +22,6 @@ mmpose
 /outputs
 *.swp
 
-/preprocessed
 *.log
 /tmp
 .neptune/

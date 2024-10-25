@@ -1,0 +1,44 @@
+#@package _global_
+defaults:
+  - /prefix@_global_
+  - /hydra: no_output
+  - /optimizer: adam
+  - /lr_scheduler: multistep
+  - /datamodule: ph14
+  - /transforms/train: 224x224
+  - /transforms/test: 224x224
+  - /model: resnet_50_distill_efficient
+  - /loss: multitask_distill
+  - /resources: mec
+
+cache_dir: outputs/train/cache0
+seed: 3407
+epoch: 200
+tags:
+  - simcc_only
+  - resnet50
+  - efficient
+
+#if continuos read model
+load_weights: False
+is_resume: False
+checkpoint: outputs/train_lightning/2024-04-24_01-42-41/last.ckpt
+devices: [0]
+
+datamodule:
+  batch_size: 2
+  num_workers: 6
+  train_shuffle: False
+
+optimizer:
+  lr: 1e-4
+
+lr_scheduler:
+  milestones: [40, 60, 70, 75, 80, 82, 84, 86, 88, 90]
+  gamma: 0.1
+
+loss:
+  ctc_weight: 1.0
+  dwpose_weight: 1.0
+  vitpose_weight: 0.0
+  dwpose_dist_temperature: 8.0
