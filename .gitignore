@@ -1,7 +1,7 @@
 core.*
-dataset
-resources
-preprocessed
+/dataset
+/resources
+/preprocessed
 **/*.ipynb
 **/.mypy_cache
 /experiments_post
