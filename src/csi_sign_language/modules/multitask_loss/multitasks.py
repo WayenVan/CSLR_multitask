@@ -40,8 +40,10 @@ class MultiTaskDistillLoss(nn.Module):
         vitpose_ckpt: str,
         ctc_weight: float = 1.0,
         vitpose_weight: float = 1.0,
+        vitpose_keypoint_exp=None,
         dwpose_weight: float = 1.0,
         dwpose_dist_temperature: float = 8.0,
+        dwpose_keypoint_exp=None,
         *args,
         **kwargs,
     ) -> None:
@@ -52,10 +54,12 @@ class MultiTaskDistillLoss(nn.Module):
         if dwpose_weight > 0.0:
             self.dwpose = DWPoseWarpper(dwpose_cfg, dwpose_ckpt)
             self.dwpose_intput_size = (self.dwpose.input_H, self.dwpose.input_W)
+            self.dwpose_keypoint_exp = dwpose_keypoint_exp
 
         # vitpose related
         if vitpose_weight > 0.0:
             self.vitpose = ViTPoseWrapper(vitpose_cfg, vitpose_ckpt)
+            self.vitpose_keypoint_exp = vitpose_keypoint_exp
 
         # ctc related
         if ctc_weight > 0.0:
@@ -132,6 +136,17 @@ class MultiTaskDistillLoss(nn.Module):
         out_logits_x, out_logits_y = (
             rearrange(a, "t b k l -> (b t) k l") for a in (out_logits_x, out_logits_y)
         )
+        if self.dwpose_keypoint_exp is not None:
+
+            def exp_keypoint(logits, keypoint_exp):
+                mask = torch.ones(
+                    logits.shape[-2], device=logits.device, dtype=torch.bool
+                )
+                mask[keypoint_exp] = False
+                return logits[:, mask]
+
+            target_logits_x = exp_keypoint(target_logits_x, self.dwpose_keypoint_exp)
+            target_logits_y = exp_keypoint(target_logits_y, self.dwpose_keypoint_exp)
 
         # assertion
         assert target_logits_x.shape == out_logits_x.shape
@@ -172,6 +187,7 @@ if __name__ == "__main__":
         dwpose_weight=10.0,
         vitpose_weight=1.0,
         dwpose_dist_temperature=8.0,
+        dwpose_keypoint_exp=[0, 1, 2, 3],
     ).to(device)
     classes = 100
     B = 2
@@ -179,7 +195,7 @@ if __name__ == "__main__":
     L = 5
     H = 224
     W = 224
-    K_dwpose = 133
+    K_dwpose = 133 - 4
     K_vitpose = 17
 
     # Dummy data for testing
