@@ -41,7 +41,7 @@ class DebugCallback(Callback):
 @hydra.main(
     version_base="1.3.2",
     config_path="../configs",
-    config_name="run/train/resnet50_efficient_simcc_only",
+    config_name="run/train/resnet_dualtask_efficient.yaml",
 )
 def test_model(cfg):
     # cfg = hydra.compose('run/train/dual')

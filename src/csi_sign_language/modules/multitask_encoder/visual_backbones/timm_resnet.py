@@ -41,7 +41,7 @@ class TimmResNetBackbone(VisualBackbone):
 
         T = int(x.size(2))
         x = rearrange(x, "b c t h w -> (b t) c h w")
-        x = self.model(x)
+        x = self.model.forward_features(x)
         x = rearrange(x, "(b t) c h w -> b c t h w", t=T)
         return [x], t_length
 
