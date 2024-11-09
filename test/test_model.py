@@ -41,7 +41,7 @@ class DebugCallback(Callback):
 @hydra.main(
     version_base="1.3.2",
     config_path="../configs",
-    config_name="run/train/resnet_dualtask_efficient.yaml",
+    config_name="run/train/swin_efficient_distill_both",
 )
 def test_model(cfg):
     # cfg = hydra.compose('run/train/dual')
@@ -65,10 +65,10 @@ def test_model(cfg):
         # strategy='deepspeed_stage_2',
         # max_steps=100,
         # devices=getattr(cfg, "devices", [1]),
-        devices=[0],
+        devices=[0, 1],
         logger=False,
         enable_checkpointing=False,
-        # precision=16,
+        precision=16,
         callbacks=[callbacks.RichProgressBar(), DebugCallback()],
     )
     lightning_module.set_validation_working_dir(

@@ -2,7 +2,10 @@ import timm
 import torch
 from timm import models as tmodel
 from timm.models.resnet import ResNet
+from timm import list_models
 
+
+print(list_models("*vit*tiny*"))
 
 model = timm.create_model("mobilenetv3_small_050", pretrained=True)
 # delattr(model, "fc")

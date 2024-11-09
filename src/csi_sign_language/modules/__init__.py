@@ -13,6 +13,8 @@ from .multitask_encoder.visual_backbones.resnet import ResNetBackbone
 
 from .multitask_encoder.visual_backbones.timm_resnet import TimmResNetBackbone
 from .multitask_encoder.visual_backbones.timm_visual_backbone import TimmVisualBackbone
+from .multitask_encoder.visual_backbones.timm_vit import TimmViTBackbone
+from .multitask_encoder.visual_backbones.timm_swin import TimmSwinBackbone
 from .multitask_encoder.multitask_encoder_csplit import MultiTaskEncoderCsplit
 
 

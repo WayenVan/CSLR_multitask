@@ -34,6 +34,8 @@ class MultiTaskEncoder(nn.Module):
         n_keypoints_heatmap: int,
         simcc_x_samples: int,
         simcc_y_samples: int,
+        heatmap_deconv_out_channels=(256, 256, 256),
+        heatmap_deconv_kernel_sizes=(4, 4, 4),
         drop_prob=0.1,
         enable_heatmap=True,
         enable_simcc=True,
@@ -72,6 +74,8 @@ class MultiTaskEncoder(nn.Module):
             self.heatmap_header = HeatmapHead(
                 in_channels=self.backbone.get_output_dims()[-1],
                 out_channels=n_keypoints_heatmap,
+                deconv_out_channels=heatmap_deconv_out_channels,
+                deconv_kernel_sizes=heatmap_deconv_kernel_sizes,
             )
 
     MultiTaskEncoderOut = namedtuple(
