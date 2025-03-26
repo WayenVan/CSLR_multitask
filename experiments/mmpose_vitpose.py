@@ -14,6 +14,7 @@ from torchvision.utils import save_image
 import matplotlib.pyplot as plt
 from warnings import warn
 from mmpose.models.heads import HeatmapHead
+from mmpretrain.models.backbones import VisionTransformer
 
 from mmpose.apis import init_model
 
@@ -44,12 +45,12 @@ class ViTPoseWarpper(nn.Module):
         @param x: The input tensor of shape (B, C, H, W), should be normalized to [0, 1]
         @return: The output tensor of shape (B, 17, H//4, W//4)
         """
-        assert (
-            x.max().item() <= 1.0001
-        ), "The input tensor should be normalized to [0, 1]"
-        assert (
-            x.min().item() >= -0.0001
-        ), "The input tensor should be normalized to [0, 1]"
+        assert x.max().item() <= 1.0001, (
+            "The input tensor should be normalized to [0, 1]"
+        )
+        assert x.min().item() >= -0.0001, (
+            "The input tensor should be normalized to [0, 1]"
+        )
 
         # transer to [0, 255] for adapt the std and mean
         x = x * 255.0
@@ -63,7 +64,7 @@ class ViTPoseWarpper(nn.Module):
 
 device = "cuda:0"
 # Read an image
-image = cv2.imread("./outputs/frame_0.jpg")
+image = cv2.imread("./outputs/frames/frame_2.png")
 # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 # Map the image to [0, 1]
 image = image.astype(np.float32)
@@ -81,7 +82,14 @@ model.to(device)
 
 
 output = model(image)
-print(output.shape)
-
-plt.imshow(output[0, 0].cpu().numpy(), cmap="hot", interpolation="nearest")
-plt.savefig("outputs/pose.png")
+# output = torch.where(
+#     output < 0.2,
+#     torch.zeros_like(output, device=output.device),
+#     torch.ones_like(output, device=output.device),
+# )
+# print(output.shape)
+plt.axis("off")
+plt.tight_layout(pad=0)  # pad=0 表示无额外边距
+plt.subplots_adjust(left=0, right=1, top=1, bottom=0)  # 调整边界
+plt.imshow(output[0, 0].cpu().numpy())
+plt.savefig("outputs/pose.pdf")

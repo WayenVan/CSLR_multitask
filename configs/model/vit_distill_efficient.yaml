@@ -7,7 +7,7 @@ encoder:
   n_keypoints_simcc: 133
   n_keypoints_heatmap: 17
   simcc_x_samples: 384
-  simcc_y_samples: 512
+  simcc_y_sa224, 224mples: 512
   enable_heatmap: True
   enable_simcc: True
   heatmap_deconv_out_channels: [256, 256]

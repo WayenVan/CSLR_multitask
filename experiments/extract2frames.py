@@ -8,7 +8,7 @@ from hydra.utils import instantiate
 from functools import partial
 import PIL
 from PIL import Image
-from csi_sign_language.data.dataset.phoenix14 import MyPhoenix14Dataset
+from csi_sign_language.data.dataset.phoenix14 import MyPhoenix14DatasetV2
 import click
 
 
@@ -18,8 +18,8 @@ import click
 def main(t, tp):
     print(f"t={t}")
     print(f"tp={tp}")
-    dataset = MyPhoenix14Dataset(
-        "dataset/preprocessed/ph14_lmdb", "multisigner", "train"
+    dataset = MyPhoenix14DatasetV2(
+        "dataset/phoenix2014-release", "dataset/preprocessed/ph14_lmdb", "train"
     )
     video = dataset[0]["video"]
     # video = np.transpose(video, [0, 2, 3, 1])

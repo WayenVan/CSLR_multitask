@@ -63,20 +63,19 @@ class DWPoseWarpper(nn.Module):
         """
         H, W = x.shape[-2:]
 
-        assert (
-            x.max().item() <= 1.0001
-        ), "The input tensor should be normalized to [0, 1]"
-        assert (
-            x.min().item() >= -0.0001
-        ), "The input tensor should be normalized to [0, 1]"
-        assert (
-            (H, W)
-            == (
-                self.input_H,
-                self.input_W,
+        assert x.max().item() <= 1.0001, (
+            "The input tensor should be normalized to [0, 1]"
+        )
+        assert x.min().item() >= -0.0001, (
+            "The input tensor should be normalized to [0, 1]"
+        )
+        assert (H, W) == (
+            self.input_H,
+            self.input_W,
+        ), (
+            "The input tensor should have the same shape as the model input size. required: {}, got: {}".format(
+                (self.input_H, self.input_W), (H, W)
             )
-        ), "The input tensor should have the same shape as the model input size. required: {}, got: {}".format(
-            (self.input_H, self.input_W), (H, W)
         )
 
         # transer to [0, 255] for adapt the std and mean
@@ -96,7 +95,7 @@ if __name__ == "__main__":
     ).to("cuda:1")
 
     # prepare data
-    image = Image.open("./outputs/frame_0.jpg")
+    image = Image.open("./outputs/frames/frame_2.png")
     image = central_crop(image, 224, 224)
     image = F.to_tensor(image)
     image = F.resize(image, [256, 192])
@@ -106,27 +105,35 @@ if __name__ == "__main__":
 
     # run model
     x, y = model(image)
-    # x, y = (torch.nn.functional.softmax(a, dim=-1) ** 4 for a in (x, y))
-    # p = einsum(x, y, "b k i, b k j -> b k j i")
-    # p = p.max(dim=-3)[0]
-    # plt.imshow(p[0, 37].cpu().numpy())
-    # plt.savefig("outputs/pose.png")
-    #
-    # locs = decode(x, y, model.simcc_split_ratio)
-    # print(locs.shape)
+    print(x.shape)
+    print(y.shape)
 
-    image_np = image.squeeze(0).permute(1, 2, 0).cpu().numpy()
-    image_np = (image_np * 255).astype(np.uint8)
-    image_pil = Image.fromarray(image_np)
-
-    # Plot the image
-    plt.imshow(image_pil)
-
-    # Plot the keypoints
-    locs = decode(x, y, model.simcc_split_ratio)
-    locs = locs[0].cpu().numpy()  # Get the keypoints for the first image in the batch
-    for keypoint in locs:
-        plt.scatter(keypoint[0], keypoint[1], s=10, c="red", marker="o")
-
-    plt.savefig("outputs/pose_with_keypoints.png")
-    print(locs.shape)
+    plt.axis("off")
+    plt.tight_layout(pad=0)  # pad=0 表示无额外边距
+    # plt.subplots_adjust(left=0, right=1, top=1, bottom=0)  # 调整边界
+    plt.imshow(y[:, 5, 100:108].cpu().numpy())
+    plt.savefig("outputs/simcc_y.pdf")
+# x, y = (torch.nn.functional.softmax(a, dim=-1) ** 4 for a in (x, y))
+# p = einsum(x, y, "b k i, b k j -> b k j i")
+# p = p.max(dim=-3)[0]
+# plt.imshow(p[0, 37].cpu().numpy())
+# plt.savefig("outputs/pose.png")
+#
+# locs = decode(x, y, model.simcc_split_ratio)
+# print(locs.shape)
+#
+# image_np = image.squeeze(0).permute(1, 2, 0).cpu().numpy()
+# image_np = (image_np * 255).astype(np.uint8)
+# image_pil = Image.fromarray(image_np)
+#
+# # Plot the image
+# plt.imshow(image_pil)
+#
+# # Plot the keypoints
+# locs = decode(x, y, model.simcc_split_ratio)
+# locs = locs[0].cpu().numpy()  # Get the keypoints for the first image in the batch
+# for keypoint in locs:
+#     plt.scatter(keypoint[0], keypoint[1], s=10, c="red", marker="o")
+#
+# plt.savefig("outputs/pose_with_keypoints.png")
+# print(locs.shape)

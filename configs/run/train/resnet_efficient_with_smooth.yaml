@@ -7,7 +7,7 @@ defaults:
   - /datamodule: ph14
   - /transforms/train: 224x224
   - /transforms/test: 224x224
-  - /model: resnet_distillv2_efficient
+  - /model: resnet_distill_efficient
   - /loss: multitask_distill_with_smooth
   - /resources: mec
 

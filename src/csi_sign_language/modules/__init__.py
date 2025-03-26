@@ -22,6 +22,7 @@ from .resnet_encoder.resnet_encoder import ResnetEncoder
 
 from .multitask_loss.multitasks import MultiTaskDistillLoss
 from .multitask_loss.multitasks_seq_smooth import MultiTaskDistillLossSmooth
+from .multitask_loss.multitasks_hard import MultiTaskDistillLossHard
 
 from .tconv_neck.tconv_neck import TemporalConvNeck
 from .multitask_encoder.dualtask_stream_encoder import DualTaskStreamEncoder, FusionA

@@ -18,12 +18,12 @@ from lightning.pytorch.trainer import Trainer
 @click.option(
     "--config",
     "-c",
-    default="outputs/train/2024-09-28_23-35-44/config.yaml",
+    default="outputs/train/2024-10-10_01-22-13/config.yaml",
 )
 @click.option(
     "-ckpt",
     "--checkpoint",
-    default="outputs/train/2024-09-28_23-35-44/epoch=65_wer-val=19.85_lr=1.00e-06_loss=42.41.ckpt",
+    default="outputs/train/2024-10-10_01-22-13/epoch=46_wer-val=22.19_lr=1.00e-05_loss=0.00.ckpt",
 )
 @click.option("--ph14_root", default="dataset/phoenix2014-release")
 @click.option("--ph14_lmdb_root", default="dataset/preprocessed/ph14_lmdb")
@@ -36,6 +36,7 @@ def main(config, checkpoint, ph14_root, ph14_lmdb_root, working_dir, mode):
     cfg = OmegaConf.load(config)
 
     dm = Ph14DataModule(
+        ph14_root,
         ph14_lmdb_root,
         batch_size=2,
         num_workers=6,

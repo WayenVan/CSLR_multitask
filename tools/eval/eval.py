@@ -12,7 +12,7 @@ import click
 
 
 @click.option("--work_dir", default="./outputs/evaluate_working_dir")
-@click.option("--result_dir", default="outputs/train/cache0/validate_data_cache")
+@click.option("--result_dir", default="outputs/evaluate_working_dir/test_result")
 @click.option("--data_root", default="dataset/phoenix2014-release")
 @click.command()
 def main(work_dir: str, result_dir: str, data_root: str):

@@ -1,0 +1,9 @@
+_target_: ${csi}.modules.MultiTaskDistillLossHard
+dwpose_cfg: ${resources.dwpose_cfg}
+dwpose_ckpt: ${resources.dwpose_ckpt}
+vitpose_cfg: ${resources.vitpose_cfg}
+vitpose_ckpt: ${resources.vitpose_ckpt}
+ctc_weight: 1.0
+dwpose_weight: 1.0
+vitpose_weight: 1.0
+vitpose_clip_threshold: 0.2
