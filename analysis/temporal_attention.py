@@ -18,19 +18,20 @@ import click
 from torch.nn import MultiheadAttention
 
 
-@click.option("--config", "-c", default="outputs/train/2024-05-17_22-32-27/config.yaml")
+@click.option("--config", "-c", default="outputs/train/2024-10-04_16-05-10/config.yaml")
 @click.option(
     "-ckpt",
     "--checkpoint",
-    default="outputs/train/2024-05-17_22-32-27/epoch=56_wer-val=28.05_lr=0.00e+00_loss=0.00.ckpt",
+    default="outputs/train/2024-10-04_16-05-10/epoch=73_wer-val=20.71_lr=1.00e-06_loss=0.00.ckpt",
 )
 # @click.option('--config', '-c', default='outputs/train/2024-05-14_22-07-53/config.yaml')
 # @click.option('-ckpt', '--checkpoint', default='outputs/train/2024-05-14_22-07-53/epoch=54_wer-val=23.25_lr=0.00e+00_loss=0.00.ckpt')
+@click.option("--ph14_root", default="dataset/phoenix2014-release")
 @click.option("--ph14_lmdb_root", default="dataset/preprocessed/ph14_lmdb")
 @click.option("--mode", default="test")
 @click.option("--device", default="cuda:1")
 @click.command()
-def main(config, checkpoint, ph14_lmdb_root, mode, device):
+def main(config, checkpoint, ph14_root, ph14_lmdb_root, mode, device):
     if mode not in ["val", "test"]:
         raise NotImplementedError()
 
@@ -42,6 +43,7 @@ def main(config, checkpoint, ph14_lmdb_root, mode, device):
     cfg = OmegaConf.load(config)
 
     dm = Ph14DataModule(
+        ph14_root,
         ph14_lmdb_root,
         batch_size=1,
         num_workers=6,
@@ -60,8 +62,8 @@ def main(config, checkpoint, ph14_lmdb_root, mode, device):
         assert p.isinf().any() != True
 
     for n, m in model.named_modules():
-        print(n)
-        if re.match(r"backbone.decoder.tf.trans_decoder.layers.[0-9].self_attn", n):
+        print(n, m.__class__)
+        if re.match(r"backbone.decoder.blocks.[0-9].attn.attn", n):
             m.register_forward_hook(get_attention)
 
     test_loader = dm.test_dataloader()
@@ -78,9 +80,6 @@ def main(config, checkpoint, ph14_lmdb_root, mode, device):
     model.to(device)
 
     output, hyp = model(x, t_length)
-    print(len(attn))
-
-    print(hyp)
     print(test_data["gloss_label"])
     print(dm.get_post_process().process(hyp, test_data["gloss_label"]))
 
@@ -95,10 +94,10 @@ def main(config, checkpoint, ph14_lmdb_root, mode, device):
             axes[i][j].set_title("output {}".format(i * 2 + j))
             axes[i][j].yaxis.set_major_locator(ticker.MultipleLocator(1))
             axes[i][j].xaxis.set_major_locator(ticker.MultipleLocator(1))
-            axes[i][j].imshow(X=attn[i * 2 + j][0], vmin=0.0, vmax=0.25)
+            axes[i][j].imshow(X=attn[i * 2 + j][0], vmin=0, vmax=0.1)
             print(np.std(a=attn[i * 2 + j], axis=-1))
             axes[i][j].tick_params(axis="x", labelrotation=90)
-            axes[i][j].grid(True)
+            # axes[i][j].grid(True)
 
     plt.savefig("resources/attention.pdf")
 

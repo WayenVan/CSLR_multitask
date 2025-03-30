@@ -1,63 +1,84 @@
 #! /usr/bin/env python3
 
-from pathlib import Path
-from re import T
-import torch
-from omegaconf import OmegaConf, DictConfig
-import sys
 
-sys.path.append("src")
-from hydra.utils import instantiate
-from csi_sign_language.utils.git import (
-    save_git_diff_to_file,
-    save_git_hash,
-)
-from csi_sign_language.models.slr_model import SLRModel
-import hydra
-import os
+def calculate_self_attention_flops_variable_length(N_q, N_kv, d):
+    # Query, Key, Value Projections
+    flops_q = N_q * d * d
+    flops_k = N_kv * d * d
+    flops_v = N_kv * d * d
+    flops_projections = flops_q + flops_k + flops_v
 
-from datetime import datetime
-from lightning.pytorch import seed_everything
-import thop
+    # Q @ K^T: N_q * N_kv * d
+    flops_scores = N_q * N_kv * d
 
+    # Softmax: 2 * N_q * N_kv
+    flops_softmax = 2 * N_q * N_kv
 
-@hydra.main(
-    version_base="1.3.2",
-    config_path="../configs",
-    config_name="run/train/resnet_efficient_distill_both.yaml",
-)
-def main(cfg: DictConfig):
-    seed_everything(cfg.seed, workers=True)
-    cfg.model.decoder.bucket_size = 4
+    # attn @ V: N_q * N_kv * d
+    flops_attn_v = N_q * N_kv * d
 
-    # set output directory
-    current_time = datetime.now()
-    file_name = os.path.basename(__file__)
-    save_dir = os.path.join(
-        "outputs", file_name[:-3], current_time.strftime("%Y-%m-%d_%H-%M-%S")
+    # Final projection: N_q * d * d
+    flops_output = N_q * d * d
+
+    total_flops = (
+        flops_projections + flops_scores + flops_softmax + flops_attn_v + flops_output
     )
-    cache_dir = Path(cfg.cache_dir)
-
-    ## build module
-    datamodule = instantiate(cfg.datamodule)
-    vocab = datamodule.get_vocab()
-
-    model = SLRModel(cfg, vocab).to("cpu")
-    decoder = model.backbone.decoder
-    test_data = next(iter(datamodule.test_dataloader()))
-    tmp = torch.randn(100, 1, 512)
-
-    time = datetime.now()
-    with torch.no_grad():
-        # flops, params = thop.profile(
-        #     decoder, inputs=(tmp, torch.tensor([100], dtype=torch.int64)), verbose=True
-        # )
-        for i in range(10):
-            decoder(tmp, torch.tensor([100], dtype=torch.int64))
-    time = datetime.now() - time
-    print(f"Time: {time}")
-    # print(f"FLOPs: {flops}, Params: {params}")
+    return total_flops
 
 
-if __name__ == "__main__":
-    main()
+def calculate_multihead_attention_flops_variable_length(N_q, N_kv, d, h):
+    d_head = d // h
+    # FLOPs per head
+    flops_per_head = calculate_self_attention_flops_variable_length(N_q, N_kv, d_head)
+    # Total FLOPs for h heads + output projection (N_q * d * d)
+    total_flops = h * flops_per_head + N_q * d * d
+    return total_flops
+
+
+def calculate_ffn_flops(N, d, d_ff=None):
+    if d_ff is None:
+        d_ff = 4 * d  # Default expansion factor (e.g., in original Transformer)
+
+    # First Linear Layer: N * d * d_ff
+    flops_linear1 = N * d * d_ff
+
+    # Activation (ReLU/GELU): N * d_ff
+    flops_activation = N * d_ff
+
+    # Second Linear Layer: N * d_ff * d
+    flops_linear2 = N * d_ff * d
+
+    total_flops = flops_linear1 + flops_activation + flops_linear2
+    return total_flops
+
+
+def calculate_depthwise_conv_flops(H, W, C_in, K, S=1, padding="same"):
+    # Compute output dimensions
+    if padding == "same":
+        H_out = (H + S - 1) // S
+        W_out = (W + S - 1) // S
+    elif padding == "valid":
+        H_out = (H - K + S) // S
+        W_out = (W - K + S) // S
+    else:
+        raise ValueError("Padding must be 'same' or 'valid'")
+
+    # FLOPs = H_out × W_out × K × K × C_in
+    flops = H_out * W_out * K * K * C_in
+    return flops
+
+
+def flops_cal(N_q, N_kv, d, h):
+    flops_self_attn = (
+        calculate_multihead_attention_flops_variable_length(N_q, N_kv, d, h) * 1e-6
+    )
+    flops_ffn = calculate_ffn_flops(N_q, d) * 1e-6
+    flops_conv = calculate_depthwise_conv_flops(1, 1, 1024, 3) * N_q * 1e-6
+    print(f"FLOPs self-attn: {flops_self_attn}")
+    print(f"FLOPs ffn: {flops_ffn}")
+    print(f"FLOPs conv: {flops_conv}")
+    return flops_self_attn + flops_ffn + flops_conv
+
+
+for i in (1, 2, 4, 6):
+    print(flops_cal(70, 70 // i, 1024, 8) * 8)

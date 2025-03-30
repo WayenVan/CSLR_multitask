@@ -1,6 +1,6 @@
 import torch
 import random
-from torch import nn
+from torch import cuda, nn
 from einops import rearrange
 
 
@@ -89,7 +89,7 @@ class BucketRandomAttention(nn.Module):
     def forward(self, q, k, v, key_length=None):
         # [t n c]
         Lk = k.shape[0]
-        if self.bucket_size > 1:
+        if self.bucket_size >= 1:
             sampled_index = self.sample_index(Lk, q.device)
             modified_key_length = self.modify_key_length(key_length, sampled_index)
 
@@ -109,11 +109,28 @@ class BucketRandomAttention(nn.Module):
 
 
 if __name__ == "__main__":
-    attn = BucketRandomAttention(
-        d_model=256,
-        num_heads=8,
-        bucket_size=4,
-    )
-    qkv = torch.rand(23, 2, 256)
-    result, _ = attn(qkv, qkv, qkv, key_length=torch.tensor([10, 20]))
-    print(result.shape)
+    import timeit
+
+    device = "cuda:0"
+    attn = nn.MultiheadAttention(1024, 8).to(device)
+    q = torch.rand(21, 2, 1024).to(device)
+    kv = torch.rand(20, 2, 1024).to(device)
+
+    key_length = torch.tensor([23, 23], dtype=torch.int64).to(device)
+
+    def main():
+        for i in range(1000):
+            output = attn(q, kv, kv, key_padding_mask=None)
+
+        # FLOPs, params = thop.profile(attn, inputs=(qkv, qkv, qkv), verbose=True)
+        # print(f"FLOPs: {FLOPs}, Params: {params}")
+        # result, _ = attn(qkv, qkv, qkv, key_length=None)
+        # print(result.shape)
+
+    execution_time = timeit.timeit("main()", globals=globals(), number=1)
+    print(f"Execution time: {execution_time} seconds")
+
+    # FLOPs, params = thop.profile(attn, inputs=(qkv, qkv, qkv), verbose=True)
+    # print(f"FLOPs: {FLOPs}, Params: {params}")
+    # result, _ = attn(qkv, qkv, qkv, key_length=None)
+    # print(result.shape)
