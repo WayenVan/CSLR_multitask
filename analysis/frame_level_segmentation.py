@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 import pickle
 import torch
+import pickle
 
 sys.path.append("src")
 from hydra.utils import instantiate
@@ -19,12 +20,14 @@ from lightning.pytorch.trainer import Trainer
 @click.option(
     "--config",
     "-c",
-    default="outputs/train/2024-10-10_01-22-13/config.yaml",
+    default="outputs/train/2024-09-25_04-13-06/config.yaml",
+    # default="outputs/train/2024-10-09_04-21-36/config.yaml",
 )
 @click.option(
     "-ckpt",
     "--checkpoint",
-    default="outputs/train/2024-10-10_01-22-13/epoch=46_wer-val=22.19_lr=1.00e-05_loss=0.00.ckpt",
+    default="outputs/train/2024-09-25_04-13-06/epoch=125_wer-val=19.43_lr=1.00e-09_loss=7.76.ckpt",
+    # default="outputs/train/2024-10-09_04-21-36/epoch=48_wer-val=26.60_lr=1.00e-05_loss=0.00.ckpt",
 )
 @click.option("--ph14_root", default="dataset/phoenix2014-release")
 @click.option("--ph14_lmdb_root", default="dataset/preprocessed/ph14_lmdb")
@@ -32,9 +35,14 @@ from lightning.pytorch.trainer import Trainer
 @click.option("--mode", default="val")
 @click.command()
 def main(config, checkpoint, ph14_root, ph14_lmdb_root, working_dir, mode):
+    device = "cuda:0"
     if mode not in ["val", "test"]:
         raise NotImplementedError()
+
     cfg = OmegaConf.load(config)
+
+    with open("outputs/test.pkl", "wb") as f:
+        pickle.dump(cfg, f)
 
     dm = Ph14DataModule(
         ph14_root,
@@ -47,27 +55,35 @@ def main(config, checkpoint, ph14_root, ph14_lmdb_root, working_dir, mode):
     )
     model = SLRModel.load_from_checkpoint(
         checkpoint, cfg=cfg, map_location="cpu", ctc_search_type="beam", strict=False
-    )
-
-    # set options
-    model.set_post_process(dm.get_post_process())
-    model.set_test_working_dir(working_dir)
-
-    t = Trainer(
-        accelerator="gpu",
-        strategy="ddp",
-        devices=[0],
-        logger=False,
-        enable_checkpointing=False,
-        precision=32,
-    )
+    ).to(device)
 
     dataloaders = dm.test_dataloader()
-    test_data = next(iter(dataloaders))
-    print(test_data)
-    video = test_data["video"]
-    t_length = test_data["video_length"]
-    out = model.backbone(video, t_length)
+    ids = []
+    result = []
+    with torch.no_grad():
+        for data in dataloaders:
+            video = data["video"].to(device)
+            print(video.shape)
+            t_length = data["video_length"].to(device)
+            model_out = model.backbone(video, t_length)
+            out = model_out.out
+            t_length = model_out.t_length
+
+            B = video.shape[0]
+            for i in range(B):
+                result.append(out[: t_length[i], i, :].cpu().numpy())
+                ids.append(data["id"][i])
+
+        import numpy as np
+
+        with open("outputs/res.pkl", "wb") as f:
+            pickle.dump(
+                {
+                    "ids": ids,
+                    "result": result,
+                },
+                f,
+            )
 
 
 if __name__ == "__main__":

@@ -83,7 +83,7 @@ def regist_hooks_x3d(model: LightningModule):
 
 
 def regist_hooks(model: LightningModule):
-    target_layer: torch.nn.Module = model.backbone.encoder.resnet.layer4
+    target_layer: torch.nn.Module = model.backbone.encoder.backbone.model.layer4
 
     def fhook(m, args, output):
         print(output.shape)
@@ -100,11 +100,11 @@ def regist_hooks(model: LightningModule):
     target_layer.register_forward_hook(fhook)
 
 
-@click.option("--config", "-c", default="outputs/train/2024-10-27_16-47-47/config.yaml")
+@click.option("--config", "-c", default="outputs/train/2024-09-25_04-13-06/config.yaml")
 @click.option(
     "-ckpt",
     "--checkpoint",
-    default="outputs/train/2024-10-27_16-47-47/epoch=44_wer-val=20.80_lr=1.00e-05_loss=0.00.ckpt",
+    default="outputs/train/2024-09-25_04-13-06/epoch=125_wer-val=19.43_lr=1.00e-09_loss=7.76.ckpt",
 )
 @click.option("--ph14_root", default="dataset/phoenix2014-release")
 @click.option("--ph14_lmdb_root", default="dataset/preprocessed/ph14_lmdb")
