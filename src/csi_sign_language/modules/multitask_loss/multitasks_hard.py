@@ -175,8 +175,8 @@ class MultiTaskDistillLossHard(nn.Module):
             reduction="none",
         )
         loss_pointwise_y = nn.functional.nll_loss(
-            out_logits_y,
-            target_logits_y.detach(),
+            out_logits_y.flatten(0, 1),
+            target_logits_y.detach().flatten(),
             reduction="none",
         )
         return loss_pointwise_x.sum() / (B * T) + loss_pointwise_y.sum() / (B * T)

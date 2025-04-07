@@ -28,3 +28,4 @@ mmpose
 **/build
 **/*.egg-info
 **/*.whl
+.aider*

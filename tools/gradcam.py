@@ -1,33 +1,23 @@
 #! /usr/bin/env python3
 import numpy as np
-import json
-from omegaconf import OmegaConf, DictConfig
-from torch import nn
+from omegaconf import OmegaConf
 import sys
-import logging
 import cv2
-
-import torch.utils
 import torch.utils.data
 
 sys.path.append("src")
 from hydra.utils import instantiate
-from matplotlib import pyplot as plt
 import torch
-from csi_sign_language.data_utils.ph14.evaluator_sclite import Pheonix14Evaluator
 from csi_sign_language.data.datamodule.ph14 import Ph14DataModule
-
-from einops import rearrange
 from csi_sign_language.models.slr_model import SLRModel
-import hydra
 import os
-import json
 from datetime import datetime
 import click
-from torchmetrics.text import WordErrorRate
 from lightning import LightningModule, Trainer
 from lightning import Callback
 import math
+from einops import rearrange
+import json
 
 feat_map = None
 grads = None
@@ -83,7 +73,7 @@ def regist_hooks_x3d(model: LightningModule):
 
 
 def regist_hooks(model: LightningModule):
-    target_layer: torch.nn.Module = model.backbone.encoder.backbone.model.layer4
+    target_layer: torch.nn.Module = model.backbone.encoder.backbone.resnet.layer4
 
     def fhook(m, args, output):
         print(output.shape)
@@ -100,11 +90,16 @@ def regist_hooks(model: LightningModule):
     target_layer.register_forward_hook(fhook)
 
 
-@click.option("--config", "-c", default="outputs/train/2024-09-25_04-13-06/config.yaml")
+@click.option(
+    "--config",
+    "-c",
+    # default="outputs/train/2024-09-25_04-13-06/config.yaml",
+    default="outputs/train/2024-11-10_00-41-40/config.yaml",
+)
 @click.option(
     "-ckpt",
     "--checkpoint",
-    default="outputs/train/2024-09-25_04-13-06/epoch=125_wer-val=19.43_lr=1.00e-09_loss=7.76.ckpt",
+    default="outputs/train/2024-11-10_00-41-40/epoch=45_wer-val=20.88_lr=1.00e-05_loss=0.00.ckpt",
 )
 @click.option("--ph14_root", default="dataset/phoenix2014-release")
 @click.option("--ph14_lmdb_root", default="dataset/preprocessed/ph14_lmdb")
@@ -121,7 +116,7 @@ def main(config, checkpoint, ph14_root, ph14_lmdb_root, index):
     dm = Ph14DataModule(
         ph14_root,
         ph14_lmdb_root,
-        batch_size=1,
+        batch_size=2,
         num_workers=6,
         train_shuffle=True,
         val_transform=instantiate(cfg.transforms.test),

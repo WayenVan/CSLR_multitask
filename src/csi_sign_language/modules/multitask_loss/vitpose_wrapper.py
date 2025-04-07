@@ -3,6 +3,7 @@ from mmengine.config import Config
 from torch import Tensor, nn
 from torchvision.transforms import functional as F
 from mmpose.apis import init_model
+from mmpretrain.models import VisionTransformer
 
 if __name__ == "__main__":
     import cv2
@@ -34,12 +35,12 @@ class ViTPoseWrapper(nn.Module):
         @param x: The input tensor of shape (B, C, H, W), should be normalized to [0, 1]
         @return: The output tensor of shape (B, 17, H//4, W//4)
         """
-        assert (
-            x.max().item() <= 1.0001
-        ), "The input tensor should be normalized to [0, 1]"
-        assert (
-            x.min().item() >= -0.0001
-        ), "The input tensor should be normalized to [0, 1]"
+        assert x.max().item() <= 1.0001, (
+            "The input tensor should be normalized to [0, 1]"
+        )
+        assert x.min().item() >= -0.0001, (
+            "The input tensor should be normalized to [0, 1]"
+        )
 
         # transer to [0, 255] for adapt the std and mean
         x = x * 255.0

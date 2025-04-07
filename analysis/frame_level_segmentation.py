@@ -1,17 +1,13 @@
 #! /usr/bin/env python3
-from omegaconf import OmegaConf, DictConfig
 import sys
-from pathlib import Path
 import pickle
 import torch
-import pickle
 
 sys.path.append("src")
 from hydra.utils import instantiate
 from csi_sign_language.data.datamodule.ph14 import Ph14DataModule
 from csi_sign_language.models.slr_model import SLRModel
 import click
-from lightning.pytorch.trainer import Trainer
 
 
 # output the result of test dataset as much as possible
